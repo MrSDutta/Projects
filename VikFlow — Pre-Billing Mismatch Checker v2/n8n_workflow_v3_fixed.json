@@ -1,0 +1,881 @@
+{
+  "name": "VikFlow \u2014 Pre-Billing Mismatch Checker v3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "invoice-check",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "de89697f-c4de-4035-bf96-f5a8e06dc16c",
+      "name": "Webhook: Invoice Received",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        96,
+        2496
+      ],
+      "webhookId": "invoice-check",
+      "notes": "Receives draft invoices. Payload: { invoice_id, account_name, line_item, billed_unit_price, quantity, remarks? }"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pricing-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0e1387dd-d35e-4e04-8c3a-b479e835f43d",
+      "name": "Webhook: Pricing Update",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        96,
+        3056
+      ],
+      "webhookId": "pricing-update",
+      "notes": "Receives agreed pricing. Payload: { account_name, line_item, agreed_unit_price, source_reference?, remarks?, entered_by? }"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "99edbd3c-84c6-4795-a5e8-30a1cf815ebf",
+      "name": "Scheduled Check (Hourly)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        2736
+      ],
+      "notes": "Runs comparison hourly. Catches manually entered data."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO webhook_log (source, payload) VALUES ('billing_webhook', '{{ JSON.stringify($json) }}'::jsonb); INSERT INTO draft_invoices (invoice_id, account_name, line_item, billed_unit_price, quantity, remarks, entry_method) VALUES ('{{ $json.invoice_id }}', '{{ $json.account_name }}', '{{ $json.line_item }}', {{ $json.billed_unit_price }}, {{ $json.quantity || 1 }}, {{ $json.remarks ? \"'\" + $json.remarks + \"'\" : 'NULL' }}, 'webhook');",
+        "options": {}
+      },
+      "id": "5944e671-aa98-4c30-bd5e-eba145bf4299",
+      "name": "Store Draft Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        2496
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO webhook_log (source, payload) VALUES ('crm_pricing_webhook', '{{ JSON.stringify($json) }}'::jsonb); INSERT INTO agreed_pricing (account_name, line_item, agreed_unit_price, source_reference, remarks, entered_by, entry_method) VALUES ('{{ $json.account_name }}', '{{ $json.line_item }}', {{ $json.agreed_unit_price }}, {{ $json.source_reference ? \"'\" + $json.source_reference + \"'\" : 'NULL' }}, {{ $json.remarks ? \"'\" + $json.remarks + \"'\" : 'NULL' }}, {{ $json.entered_by ? \"'\" + $json.entered_by + \"'\" : 'NULL' }}, 'webhook');",
+        "options": {}
+      },
+      "id": "026e039e-cfed-4101-a8ec-05113acb460c",
+      "name": "Store Agreed Pricing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        3056
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT di.id AS draft_id, di.invoice_id, di.account_name, di.line_item, di.billed_unit_price, di.quantity, di.remarks AS invoice_remarks, ap.id AS agreed_id, ap.agreed_unit_price, ap.source_reference, ap.remarks AS pricing_remarks, ap.entered_by, ABS(di.billed_unit_price - COALESCE(ap.agreed_unit_price, 0)) AS deviation, CASE WHEN ap.id IS NULL THEN 'unmatched' WHEN ABS(di.billed_unit_price - ap.agreed_unit_price) <= 0.01 THEN 'clean' ELSE 'flagged' END AS check_result FROM draft_invoices di LEFT JOIN agreed_pricing ap ON LOWER(TRIM(di.account_name)) = LOWER(TRIM(ap.account_name)) AND LOWER(TRIM(di.line_item)) = LOWER(TRIM(ap.line_item)) AND (ap.effective_until IS NULL OR ap.effective_until >= di.invoice_date) WHERE di.status = 'pending_review';",
+        "options": {}
+      },
+      "id": "044a0665-5c45-47e0-94ea-a166d2b59db0",
+      "name": "Compare: Billed vs Agreed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        544,
+        2688
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      },
+      "notes": "Tolerance hardcoded at 0.01. Change the number in the query to adjust."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.check_result }}",
+              "operation": "equals",
+              "value2": "flagged"
+            }
+          ]
+        }
+      },
+      "id": "3740d7f9-d73a-4f2c-b1a0-63c49191f660",
+      "name": "Filter: Flagged Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        768,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.check_result }}",
+              "operation": "equals",
+              "value2": "unmatched"
+            }
+          ]
+        }
+      },
+      "id": "6ea6c0df-ec32-4373-bcb8-acd19be8e237",
+      "name": "Filter: Unmatched",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        768,
+        2832
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO mismatch_log (draft_invoice_id, agreed_pricing_id, account_name, line_item, agreed_price, billed_price, deviation, match_status) VALUES ('{{ $json.draft_id }}', {{ $json.agreed_id ? \"'\" + $json.agreed_id + \"'\" : 'NULL' }}, '{{ $json.account_name }}', '{{ $json.line_item }}', {{ $json.agreed_unit_price || 'NULL' }}, {{ $json.billed_unit_price }}, {{ $json.deviation }}, '{{ $json.check_result }}');",
+        "options": {}
+      },
+      "id": "ac442225-f892-4f98-86cd-afaee17b7810",
+      "name": "Log to Mismatch Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        992,
+        2544
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE draft_invoices SET status = '{{ $json.check_result }}' WHERE id = '{{ $json.draft_id }}';",
+        "options": {}
+      },
+      "id": "4cfcdb60-5849-493d-b0ef-f45f1e833a14",
+      "name": "Update Invoice Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1216,
+        2544
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "D0ALMEPV6D8",
+          "mode": "id"
+        },
+        "text": "\ud83d\udea9 *Billing Mismatch Detected*\n\n*Account:* {{ $json.account_name }}\n*Line Item:* {{ $json.line_item }}\n*Agreed Price:* ${{ $json.agreed_unit_price }} (entered by {{ $json.entered_by || 'unknown' }})\n*Billed Price:* ${{ $json.billed_unit_price }}\n*Deviation:* ${{ $json.deviation }}\n*Sales Remarks:* {{ $json.pricing_remarks || 'None' }}\n\nReview on the dashboard.",
+        "otherOptions": {}
+      },
+      "id": "98430312-dd6e-45f0-b501-9d7226d984e7",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        1216,
+        2352
+      ],
+      "webhookId": "b780fe40-6343-4af7-8f51-717bec32c1f8",
+      "credentials": {
+        "slackApi": {
+          "id": "3biEz9xBxZVsOgGI",
+          "name": "Slack_account_duttasouvik888"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO run_log (total_invoices_checked, clean_count, flagged_count, unmatched_count) VALUES ({{ $('Compare: Billed vs Agreed').all().length }}, {{ $('Compare: Billed vs Agreed').all().filter(i => i.json.check_result === 'clean').length }}, {{ $('Compare: Billed vs Agreed').all().filter(i => i.json.check_result === 'flagged').length }}, {{ $('Compare: Billed vs Agreed').all().filter(i => i.json.check_result === 'unmatched').length }});",
+        "options": {}
+      },
+      "id": "d1633b78-4f88-4ae0-a4d4-44d603c7f6e9",
+      "name": "Log Run Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1440,
+        2688
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"received\", \"message\": \"Invoice stored and comparison triggered\" }",
+        "options": {}
+      },
+      "id": "09aa7c56-07ef-4a70-8e74-5bab801070e7",
+      "name": "Respond: Invoice OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        544,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"received\", \"message\": \"Pricing record stored\" }",
+        "options": {}
+      },
+      "id": "43eb83e0-fbb8-43ec-b87c-a423daf1541a",
+      "name": "Respond: Pricing OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        544,
+        3056
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-mismatches",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f5cd126f-fa9b-4218-bab8-9e0ec9228b0d",
+      "name": "Webhook: Get Mismatches",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        96,
+        1680
+      ],
+      "webhookId": "get-mismatches",
+      "notes": "Dashboard calls this to load mismatch_log."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM mismatch_log ORDER BY created_at DESC LIMIT 200;",
+        "options": {}
+      },
+      "id": "843e74cb-48df-47eb-8550-0fc69554e0ab",
+      "name": "Fetch Mismatches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        1680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "b971f414-a4fe-425a-b9c5-7128321ed942",
+      "name": "Respond: Mismatches",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        544,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-pricing",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3b40dcde-43e0-458e-841e-47203ea841c0",
+      "name": "Webhook: Get Pricing",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        96,
+        1904
+      ],
+      "webhookId": "get-pricing",
+      "notes": "Dashboard calls this to load agreed_pricing records."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM agreed_pricing ORDER BY created_at DESC LIMIT 100;",
+        "options": {}
+      },
+      "id": "7df2093b-8e20-45c1-9f11-d6a1fea3511f",
+      "name": "Fetch Pricing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        1904
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "8f4cd94e-f897-4bf9-a22e-d6e2db192959",
+      "name": "Respond: Pricing",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        544,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-runs",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "bb44c1cd-1ab5-4411-ba6a-5ef6cc45b8ef",
+      "name": "Webhook: Get Runs",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        96,
+        2128
+      ],
+      "webhookId": "get-runs",
+      "notes": "Dashboard calls this to load run_log."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM run_log ORDER BY run_at DESC LIMIT 5;",
+        "options": {}
+      },
+      "id": "f251a67e-38c5-46a4-8660-86eae206a839",
+      "name": "Fetch Runs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        2128
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "b6d838a2-1132-4854-8449-dca825a45eee",
+      "name": "Respond: Runs",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        544,
+        2128
+      ]
+    },
+    {
+      "parameters": {
+        "path": "review-action",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d4c442f6-28d8-49b1-a7ab-47ac72b1bbc2",
+      "name": "Webhook: Review Action",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        96,
+        1456
+      ],
+      "webhookId": "review-action",
+      "notes": "Dashboard calls this when reviewer clicks Override or Revise. Payload: { mismatch_id, action (release/revise), reviewer, notes? }"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE mismatch_log SET match_status = '{{ $json.query.action === \"release\" ? \"released\" : \"revised\" }}', reviewed_by = '{{ $json.query.reviewer }}', reviewed_at = NOW(), review_notes = {{ $json.query.notes ? \"'\" + $json.query.notes + \"'\" : 'NULL' }} WHERE id = '{{ $json.query.mismatch_id }}'; UPDATE draft_invoices SET status = '{{ $json.query.action === \"release\" ? \"released\" : \"revised\" }}' WHERE id = (SELECT draft_invoice_id FROM mismatch_log WHERE id = '{{ $json.query.mismatch_id }}');",
+        "options": {}
+      },
+      "id": "82dd3213-e9d5-4d60-8b7c-9da6d2a2eb04",
+      "name": "Execute Review Action",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        1456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\", \"action\": \"{{ $(\"Webhook: Review Action\").item.json.query.action }}\" }",
+        "options": {}
+      },
+      "id": "3bb40a69-e729-4021-b72a-962adadc3cd4",
+      "name": "Respond: Review OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        544,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "path": "add-pricing",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f9dd22e8-8b24-48ae-b08b-3e12fd86f317",
+      "name": "Webhook: Add Pricing (Dashboard)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        96,
+        1232
+      ],
+      "webhookId": "add-pricing",
+      "notes": "Dashboard form calls this to add agreed pricing. Payload: { account_name, line_item, agreed_unit_price, source_reference?, remarks?, entered_by }"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agreed_pricing (account_name, line_item, agreed_unit_price, source_reference, remarks, entered_by, entry_method) VALUES ('{{ $json.query.account_name }}', '{{ $json.query.line_item }}', {{ $json.query.agreed_unit_price }}, {{ $json.query.source_reference ? \"'\" + $json.query.source_reference + \"'\" : 'NULL' }}, {{ $json.query.remarks ? \"'\" + $json.query.remarks + \"'\" : 'NULL' }}, '{{ $json.query.entered_by }}', 'manual');",
+        "options": {}
+      },
+      "id": "e1be42ba-575f-4868-b6f0-340f5187b80e",
+      "name": "Insert Pricing (Dashboard)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        1232
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\", \"message\": \"Pricing saved\" }",
+        "options": {}
+      },
+      "id": "86e25a55-9e91-418f-8cab-dcaade1f2d96",
+      "name": "Respond: Pricing Saved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        544,
+        1232
+      ]
+    },
+    {
+      "parameters": {
+        "path": "add-invoice",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "fb3046e6-cad5-4b73-9d99-b66e84186216",
+      "name": "Webhook: Add Invoice (Dashboard)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        96,
+        1008
+      ],
+      "webhookId": "add-invoice",
+      "notes": "Dashboard form calls this to add draft invoice. Payload: { invoice_id, account_name, line_item, billed_unit_price, quantity, remarks? }"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO draft_invoices (invoice_id, account_name, line_item, billed_unit_price, quantity, remarks, entry_method) VALUES ('{{ $json.query.invoice_id }}', '{{ $json.query.account_name }}', '{{ $json.query.line_item }}', {{ $json.query.billed_unit_price }}, {{ $json.query.quantity || 1 }}, {{ $json.query.remarks ? \"'\" + $json.query.remarks + \"'\" : 'NULL' }}, 'manual');",
+        "options": {}
+      },
+      "id": "4ed6f1b4-4710-4f07-8bbc-3bc670fc46b1",
+      "name": "Insert Invoice (Dashboard)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        320,
+        1008
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\", \"message\": \"Invoice saved\" }",
+        "options": {}
+      },
+      "id": "532cb848-e632-4c09-9b57-0514c935b563",
+      "name": "Respond: Invoice Saved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        544,
+        1008
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Invoice Received": {
+      "main": [
+        [
+          {
+            "node": "Store Draft Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Draft Invoice": {
+      "main": [
+        [
+          {
+            "node": "Respond: Invoice OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compare: Billed vs Agreed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Pricing Update": {
+      "main": [
+        [
+          {
+            "node": "Store Agreed Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Agreed Pricing": {
+      "main": [
+        [
+          {
+            "node": "Respond: Pricing OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scheduled Check (Hourly)": {
+      "main": [
+        [
+          {
+            "node": "Compare: Billed vs Agreed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare: Billed vs Agreed": {
+      "main": [
+        [
+          {
+            "node": "Filter: Flagged Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter: Unmatched",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Flagged Only": {
+      "main": [
+        [
+          {
+            "node": "Log to Mismatch Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Unmatched": {
+      "main": [
+        [
+          {
+            "node": "Log to Mismatch Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Mismatch Table": {
+      "main": [
+        [
+          {
+            "node": "Update Invoice Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Invoice Status": {
+      "main": [
+        [
+          {
+            "node": "Log Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get Mismatches": {
+      "main": [
+        [
+          {
+            "node": "Fetch Mismatches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Mismatches": {
+      "main": [
+        [
+          {
+            "node": "Respond: Mismatches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get Pricing": {
+      "main": [
+        [
+          {
+            "node": "Fetch Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Pricing": {
+      "main": [
+        [
+          {
+            "node": "Respond: Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get Runs": {
+      "main": [
+        [
+          {
+            "node": "Fetch Runs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Runs": {
+      "main": [
+        [
+          {
+            "node": "Respond: Runs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Review Action": {
+      "main": [
+        [
+          {
+            "node": "Execute Review Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Review Action": {
+      "main": [
+        [
+          {
+            "node": "Respond: Review OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Add Pricing (Dashboard)": {
+      "main": [
+        [
+          {
+            "node": "Insert Pricing (Dashboard)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Pricing (Dashboard)": {
+      "main": [
+        [
+          {
+            "node": "Respond: Pricing Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Add Invoice (Dashboard)": {
+      "main": [
+        [
+          {
+            "node": "Insert Invoice (Dashboard)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Invoice (Dashboard)": {
+      "main": [
+        [
+          {
+            "node": "Respond: Invoice Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6318b488-c34b-4c07-aef2-c173ca22d2fd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "41f2db6a31ec88fa3bb255e88f46e25c0eb8c38cb580272c45cd7d20fe13719a"
+  },
+  "nodeGroups": [],
+  "id": "TOj5aETzcZr0rpzz",
+  "tags": []
+}

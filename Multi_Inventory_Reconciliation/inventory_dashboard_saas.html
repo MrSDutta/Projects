@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Audit Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family:Inter,sans-serif;
+background:linear-gradient(135deg,#0f172a,#111827,#020617);
+color:#e5e7eb;
+}
+.container{max-width:1400px;margin:auto;padding:40px}
+.header{
+display:flex;justify-content:space-between;align-items:center;
+margin-bottom:28px;
+}
+.title h1{margin:0;font-size:42px;font-weight:800}
+.title p{margin:8px 0 0;color:#94a3b8}
+button{
+background:linear-gradient(135deg,#3b82f6,#6366f1);
+color:#fff;
+border:none;
+padding:12px 22px;
+border-radius:12px;
+font-weight:600;
+cursor:pointer;
+box-shadow:0 10px 30px rgba(59,130,246,.35);
+transition:.25s;
+}
+button:hover{transform:translateY(-2px)}
+.cards{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:18px;
+margin-bottom:30px;
+}
+.card{
+background:rgba(255,255,255,.05);
+backdrop-filter:blur(18px);
+border:1px solid rgba(255,255,255,.08);
+border-radius:18px;
+padding:22px;
+}
+.card small{color:#94a3b8}
+.card h2{margin:10px 0 0;font-size:38px}
+.tableWrap{
+background:rgba(255,255,255,.05);
+backdrop-filter:blur(18px);
+border:1px solid rgba(255,255,255,.08);
+border-radius:18px;
+overflow:hidden;
+}
+table{width:100%;border-collapse:collapse}
+th,td{padding:16px}
+th{text-align:left;background:rgba(255,255,255,.04);color:#94a3b8}
+tr{border-top:1px solid rgba(255,255,255,.05)}
+tr:hover{background:rgba(255,255,255,.03);cursor:pointer}
+.badge{
+padding:5px 12px;
+border-radius:999px;
+font-size:12px;
+font-weight:700;
+}
+.match{background:#064e3b;color:#6ee7b7}
+.monitor{background:#78350f;color:#fde68a}
+.critical{background:#7f1d1d;color:#fca5a5}
+#details{
+margin-top:24px;
+display:none;
+background:rgba(255,255,255,.05);
+backdrop-filter:blur(18px);
+border:1px solid rgba(255,255,255,.08);
+border-radius:18px;
+padding:24px;
+}
+.grid{
+display:grid;
+grid-template-columns:repeat(5,1fr);
+gap:14px;
+margin-top:18px;
+}
+.channel{
+background:#111827;
+border:1px solid rgba(255,255,255,.08);
+padding:18px;
+border-radius:14px;
+text-align:center;
+}
+.empty{
+padding:40px;
+text-align:center;
+color:#94a3b8;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+<div class="title">
+<h1>Inventory Audit</h1>
+<p>Multi-channel inventory reconciliation dashboard</p>
+</div>
+<button onclick="loadDashboard()">Load Dashboard</button>
+</div>
+
+<div class="cards">
+<div class="card"><small>Total SKUs</small><h2 id="total">—</h2></div>
+<div class="card"><small>Matched</small><h2 id="matched">—</h2></div>
+<div class="card"><small>Monitor</small><h2 id="monitor">—</h2></div>
+<div class="card"><small>Critical</small><h2 id="critical">—</h2></div>
+</div>
+
+<div class="tableWrap">
+<table>
+<thead>
+<tr>
+<th>SKU</th>
+<th>Product</th>
+<th>Master</th>
+<th>Matched</th>
+<th>Drift</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody id="tbody">
+<tr><td colspan="6" class="empty">Click <strong>Load Dashboard</strong> to fetch live inventory.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div id="details">
+<h2 id="sku"></h2>
+<p id="product" style="color:#94a3b8"></p>
+<div class="grid" id="channels"></div>
+</div>
+
+</div>
+
+<script>
+const URL="https://automation.theworkflowengineer.ovh/webhook/9265bad0-09f3-410a-9280-1bed7ca862ec";
+
+async function loadDashboard(){
+const res=await fetch(URL);
+const data=await res.json();
+
+total.textContent=data.summary.total;
+matched.textContent=data.summary.matched;
+monitor.textContent=data.summary.monitored;
+critical.textContent=data.summary.critical;
+
+tbody.innerHTML="";
+data.products.forEach(p=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`
+<td>${p.sku}</td>
+<td>${p.product}</td>
+<td>${p.master}</td>
+<td>${p.matchedChannels}/5</td>
+<td>${p.drift}</td>
+<td><span class="badge ${p.status}">${p.status.toUpperCase()}</span></td>`;
+tr.onclick=()=>showDetails(p);
+tbody.appendChild(tr);
+});
+}
+
+function showDetails(p){
+details.style.display="block";
+sku.textContent=p.sku;
+product.textContent=p.product;
+channels.innerHTML="";
+Object.entries(p.channels).forEach(([k,v])=>{
+channels.innerHTML+=`
+<div class="channel">
+<div style="color:#94a3b8;font-size:12px">${k.toUpperCase()}</div>
+<div style="font-size:28px;font-weight:700;margin-top:8px">${v}</div>
+</div>`;
+});
+}
+</script>
+</body>
+</html>

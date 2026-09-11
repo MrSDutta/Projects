@@ -1,0 +1,142 @@
+
+<style>
+*{box-sizing:border-box}
+.section{margin-bottom:24px}
+.section-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--color-border-tertiary);font-family:var(--font-sans)}
+.test{padding:10px 12px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);margin-bottom:8px}
+.test-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.test-name{font-size:13px;font-weight:500;color:var(--color-text-primary);font-family:var(--font-sans)}
+.tag{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500;font-family:var(--font-mono)}
+.tag-crit{background:rgba(239,68,68,.12);color:#ef4444}
+.tag-imp{background:rgba(245,158,11,.12);color:#f59e0b}
+.tag-nice{background:rgba(16,185,129,.12);color:#10b981}
+.step{font-size:12px;color:var(--color-text-secondary);margin-bottom:3px;padding-left:14px;position:relative;font-family:var(--font-sans);line-height:1.5}
+.step::before{content:'→';position:absolute;left:0;color:var(--color-text-tertiary);font-size:11px}
+.result{font-size:11px;color:var(--color-text-success);margin-top:6px;padding:5px 8px;background:rgba(16,185,129,.08);border-radius:4px;border:1px solid rgba(16,185,129,.2);font-family:var(--font-mono)}
+.cmd{font-size:11px;font-family:var(--font-mono);background:var(--color-background-tertiary);padding:4px 8px;border-radius:4px;color:var(--color-text-secondary);margin-top:6px;word-break:break-all;display:block}
+.num{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--color-border-secondary);font-size:10px;font-weight:500;margin-right:6px;flex-shrink:0;color:var(--color-text-secondary)}
+</style>
+
+<div style="padding:16px">
+  <div style="font-size:15px;font-weight:500;margin-bottom:2px">CRM testing plan</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:20px">8 test cases — run in order. Each test builds on the previous.</div>
+
+  <!-- T1 -->
+  <div class="section">
+    <div class="section-title">Lead capture pipeline</div>
+
+    <div class="test">
+      <div class="test-header">
+        <span class="test-name"><span class="num">1</span>New business lead — full pipeline</span>
+        <span class="tag tag-crit">critical</span>
+      </div>
+      <div class="step">Send POST to lead capture webhook with a real business email you own</div>
+      <div class="step">Check Postgres — lead inserted with correct segment, status=New, assigned_to set</div>
+      <div class="step">Check inbox — intro email received within 60 seconds</div>
+      <div class="step">Check Postgres again — status=Nurturing, sequence_active=true, next_email_scheduled=3 days from now</div>
+      <code class="cmd">curl -k -X POST https://automation.theworkflowengineer.ovh/webhook/7300c6e1-b534-41af-8248-dac2d60be9ee -H "Content-Type: application/json" -d '{"name":"Test","email":"YOUR_REAL_EMAIL","source":"4wf5673","message":"Test"}'</code>
+      <div class="result">✓ Lead in DB · ✓ Email received · ✓ status=Nurturing · ✓ sequence_active=true</div>
+    </div>
+
+    <div class="test">
+      <div class="test-header">
+        <span class="test-name"><span class="num">2</span>Public domain lead — newsletter path</span>
+        <span class="tag tag-crit">critical</span>
+      </div>
+      <div class="step">Send same webhook with a gmail.com email</div>
+      <div class="step">Check Postgres — lead inserted with is_business_email=false, status=Newsletter</div>
+      <div class="step">Confirm NO intro email was sent</div>
+      <code class="cmd">curl -k -X POST https://automation.theworkflowengineer.ovh/webhook/7300c6e1-b534-41af-8248-dac2d60be9ee -H "Content-Type: application/json" -d '{"name":"Gmail User","email":"testuser@gmail.com","source":"4wf5673","message":"Test"}'</code>
+      <div class="result">✓ In DB with is_business_email=false · ✓ status=Newsletter · ✓ no email sent</div>
+    </div>
+
+    <div class="test">
+      <div class="test-header">
+        <span class="test-name"><span class="num">3</span>Duplicate lead — update path</span>
+        <span class="tag tag-crit">critical</span>
+      </div>
+      <div class="step">Send the same business email from test 1 again</div>
+      <div class="step">Check n8n execution — should go through Route_By_Status</div>
+      <div class="step">Check Postgres — lead updated (last_activity changed), sequence NOT restarted</div>
+      <div class="step">Confirm NO second intro email was sent</div>
+      <div class="result">✓ No duplicate in DB · ✓ No second email · ✓ last_activity updated</div>
+    </div>
+  </div>
+
+  <!-- T2 -->
+  <div class="section">
+    <div class="section-title">Engagement tracking</div>
+
+    <div class="test">
+      <div class="test-header">
+        <span class="test-name"><span class="num">4</span>Email open pixel fires</span>
+        <span class="tag tag-crit">critical</span>
+      </div>
+      <div class="step">Open the intro email you received in test 1</div>
+      <div class="step">Wait 10 seconds then check lead_score in Postgres — should be +5</div>
+      <div class="step">Check email_opened=true</div>
+      <code class="cmd">SELECT lead_score, email_opened FROM crm.leads WHERE email='YOUR_EMAIL';</code>
+      <div class="result">✓ lead_score=5 · ✓ email_opened=true</div>
+    </div>
+
+    <div class="test">
+      <div class="test-header">
+        <span class="test-name"><span class="num">5</span>Link click tracking + redirect</span>
+        <span class="tag tag-crit">critical</span>
+      </div>
+      <div class="step">Click any tracked link in the intro email</div>
+      <div class="step">Confirm you land on the target page (not a blank n8n screen)</div>
+      <div class="step">Check Postgres — lead_score +10, link_clicked=true</div>
+      <div class="result">✓ Redirected correctly · ✓ lead_score=15 · ✓ link_clicked=true</div>
+    </div>
+
+    <div class="test">
+      <div class="test-header">
+        <span class="test-name"><span class="num">6</span>Hot lead Slack alert</span>
+        <span class="tag tag-crit">critical</span>
+      </div>
+      <div class="step">Manually set lead_score to 55 in Postgres to trigger hot lead</div>
+      <div class="step">Trigger an event (open pixel or link click) to fire the scoring check</div>
+      <div class="step">Check Slack — hot lead alert message received</div>
+      <div class="step">Check Postgres — status=Hot</div>
+      <code class="cmd">UPDATE crm.leads SET lead_score=45 WHERE email='YOUR_EMAIL';</code>
+      <div class="result">✓ Slack alert received · ✓ status=Hot</div>
+    </div>
+  </div>
+
+  <!-- T3 -->
+  <div class="section">
+    <div class="section-title">Dashboard & importer</div>
+
+    <div class="test">
+      <div class="test-header">
+        <span class="test-name"><span class="num">7</span>CSV lead importer</span>
+        <span class="tag tag-imp">important</span>
+      </div>
+      <div class="step">Go to crm.theworkflowengineer.ovh → Lead importer</div>
+      <div class="step">Upload test_leads.csv (8 rows)</div>
+      <div class="step">Verify column mapping looks correct</div>
+      <div class="step">Click Import — check Postgres for 8 new rows</div>
+      <code class="cmd">SELECT COUNT(*), segment FROM crm.leads GROUP BY segment;</code>
+      <div class="result">✓ 8 leads imported · ✓ correct segments · ✓ no duplicates</div>
+    </div>
+
+    <div class="test">
+      <div class="test-header">
+        <span class="test-name"><span class="num">8</span>Email template editor</span>
+        <span class="tag tag-imp">important</span>
+      </div>
+      <div class="step">Go to crm.theworkflowengineer.ovh → Email templates</div>
+      <div class="step">Edit Enterprise Stage 1 subject line — add "TEST" at the start</div>
+      <div class="step">Click Push to n8n</div>
+      <div class="step">Check Postgres — crm.email_templates updated</div>
+      <div class="step">Revert the change and push again</div>
+      <code class="cmd">SELECT segment, stage, subject FROM crm.email_templates ORDER BY segment, stage;</code>
+      <div class="result">✓ Template updated in DB · ✓ Sequence uses new template on next send</div>
+    </div>
+  </div>
+
+  <div style="padding:10px 12px;border-radius:8px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary)">
+    Run tests 1-6 before demoing to anyone. Tests 7-8 can be done during the demo — they're impressive live.
+  </div>
+</div>

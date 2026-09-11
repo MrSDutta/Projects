@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instant Solar Estimate | VikFlow Ops</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --ink: hsl(222, 35%, 9%);
+            --ink-soft: hsl(222, 22%, 22%);
+            --cream: hsl(42, 38%, 94%);
+            --cream-deep: hsl(38, 30%, 89%);
+            --brand: hsl(221, 83%, 53%);
+            --brand-soft: hsl(221, 100%, 96%);
+            --coral: hsl(14, 92%, 60%);
+            --green: hsl(152, 68%, 38%);
+            --green-soft: hsl(152, 60%, 94%);
+
+            --background: var(--cream);
+            --foreground: var(--ink);
+            --card: rgba(255, 255, 255, 0.88);
+            --border: hsl(36, 18%, 82%);
+            --radius: 1rem;
+            --font-serif: 'Fraunces', ui-serif, Georgia, serif;
+            --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: #ede8df;
+            background-image:
+                radial-gradient(at 0% 100%, rgba(243, 138, 108, 0.32) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(182, 202, 233, 0.45) 0px, transparent 45%);
+            background-attachment: fixed;
+            color: var(--foreground);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.15 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: 0.6;
+            mix-blend-mode: overlay;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Card */
+        .calculator-card {
+            background: var(--card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: var(--radius);
+            box-shadow:
+                0 20px 40px -15px rgba(15, 23, 42, 0.07),
+                0 1px 3px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 500px;
+            padding: 32px 32px 36px 32px;
+            position: relative;
+            z-index: 2;
+            overflow: hidden;
+        }
+
+        /* Brand Header */
+        .brand-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--ink);
+            font-family: var(--font-serif);
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .brand-badge {
+            font-family: var(--font-sans);
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            background: var(--cream-deep);
+            color: var(--ink-soft);
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+        }
+
+        /* Progress */
+        .progress-container {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 28px;
+        }
+
+        .progress-bar {
+            height: 3px;
+            flex: 1;
+            background: rgba(0, 0, 0, 0.06);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--brand);
+            border-radius: 2px;
+            transition: width 0.5s cubic-bezier(0.65, 0, 0.35, 1);
+        }
+
+        /* Steps */
+        .step {
+            display: none;
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        .step.active {
+            display: block;
+            animation: fadeInUp 0.4s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-sans);
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--ink-soft);
+            margin-bottom: 8px;
+        }
+
+        .eyebrow::before {
+            content: '';
+            width: 1.25rem;
+            height: 1px;
+            background: var(--ink-soft);
+            display: inline-block;
+        }
+
+        h2 {
+            font-family: var(--font-serif);
+            font-weight: 500;
+            color: var(--ink);
+            font-size: 1.65rem;
+            line-height: 1.15;
+            letter-spacing: -0.025em;
+            margin: 0 0 10px 0;
+        }
+
+        .display-italic {
+            font-family: var(--font-serif);
+            font-style: italic;
+            font-weight: 300;
+        }
+
+        p.subtitle {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin: 0 0 24px 0;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-soft);
+        }
+
+        .optional-label {
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+            opacity: 0.6;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) * 0.6);
+            font-size: 0.95rem;
+            font-family: var(--font-sans);
+            outline: none;
+            background: rgba(255, 255, 255, 0.7);
+            color: var(--ink);
+            transition: all 0.2s ease;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--brand);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px var(--brand-soft);
+        }
+
+        /* Bill Slider */
+        .bill-card {
+            background: rgba(255, 255, 255, 0.65);
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) * 0.75);
+            padding: 24px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .bill-display {
+            font-family: var(--font-serif);
+            font-size: 3rem;
+            font-weight: 500;
+            color: var(--ink);
+            letter-spacing: -0.03em;
+        }
+
+        .bill-sub {
+            font-size: 1rem;
+            color: var(--ink-soft);
+            font-family: var(--font-sans);
+        }
+
+        .bill-kwh {
+            font-size: 0.8rem;
+            color: var(--ink-soft);
+            margin-top: 4px;
+            opacity: 0.7;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, var(--brand) 0%, var(--border) 0%);
+            outline: none;
+            margin-top: 14px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--brand);
+            cursor: pointer;
+            box-shadow: 0 0 0 4px var(--brand-soft);
+            border: 2px solid white;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--brand);
+            cursor: pointer;
+            box-shadow: 0 0 0 4px var(--brand-soft);
+            border: 2px solid white;
+        }
+
+        /* Shade Options */
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .option-btn {
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.65);
+            padding: 14px 8px;
+            border-radius: calc(var(--radius) * 0.6);
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--ink);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .option-btn:hover {
+            border-color: var(--brand);
+            background: #ffffff;
+        }
+
+        .option-btn.active {
+            border-color: var(--brand);
+            background: var(--brand-soft);
+            color: var(--brand);
+        }
+
+        .option-icon {
+            font-size: 1.4rem;
+        }
+
+        /* Roof type 2-col */
+        .option-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        /* Primary Button */
+        button.primary-btn {
+            width: 100%;
+            background: var(--ink);
+            color: var(--cream);
+            border: none;
+            border-radius: calc(var(--radius) * 0.65);
+            padding: 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: var(--font-sans);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button.primary-btn:hover {
+            background: var(--ink-soft);
+            transform: translateY(-1px);
+        }
+
+        button.primary-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Secondary Button */
+        button.secondary-btn {
+            width: 100%;
+            background: transparent;
+            color: var(--ink-soft);
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) * 0.65);
+            padding: 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: var(--font-sans);
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+
+        button.secondary-btn:hover {
+            border-color: var(--ink);
+            color: var(--ink);
+        }
+
+        /* ═══════════════════════
+           RESULTS SCREEN (WOW)
+           ═══════════════════════ */
+
+        .savings-hero {
+            text-align: center;
+            padding: 24px 0 20px;
+        }
+
+        .savings-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--green);
+            margin-bottom: 4px;
+        }
+
+        .savings-amount {
+            font-family: var(--font-serif);
+            font-size: 3.2rem;
+            font-weight: 500;
+            color: var(--green);
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+        }
+
+        .savings-period {
+            font-size: 0.85rem;
+            color: var(--ink-soft);
+            margin-top: 4px;
+        }
+
+        .savings-context {
+            font-size: 0.8rem;
+            color: var(--ink-soft);
+            margin-top: 8px;
+            padding: 10px 16px;
+            background: var(--green-soft);
+            border-radius: calc(var(--radius) * 0.5);
+            border: 1px solid hsl(152, 40%, 85%);
+        }
+
+        .results-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 20px 0;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.65);
+            border: 1px solid var(--border);
+            border-radius: calc(var(--radius) * 0.6);
+        }
+
+        .result-label {
+            font-size: 0.82rem;
+            color: var(--ink-soft);
+            font-weight: 500;
+        }
+
+        .result-value {
+            font-family: var(--font-serif);
+            font-size: 1.15rem;
+            color: var(--ink);
+            font-weight: 500;
+        }
+
+        .result-row.highlight {
+            background: var(--brand-soft);
+            border-color: hsl(221, 83%, 88%);
+        }
+
+        .result-row.highlight .result-value {
+            color: var(--brand);
+        }
+
+        /* Animated counter */
+        .counter-animate {
+            display: inline-block;
+        }
+
+        /* Divider */
+        .section-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 20px 0;
+        }
+
+        /* Lead Capture */
+        .lead-capture {
+            background: var(--ink);
+            color: var(--cream);
+            margin: 0 -32px -36px -32px;
+            padding: 28px 32px 32px;
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+
+        .lead-capture h3 {
+            font-family: var(--font-serif);
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin: 0 0 6px 0;
+            color: #ffffff;
+        }
+
+        .lead-capture p {
+            font-size: 0.82rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 0 0 18px 0;
+        }
+
+        .lead-capture input {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        .lead-capture input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .lead-capture input:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: none;
+        }
+
+        .lead-capture .submit-btn {
+            width: 100%;
+            background: #ffffff;
+            color: var(--ink);
+            border: none;
+            border-radius: calc(var(--radius) * 0.65);
+            padding: 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: var(--font-sans);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .lead-capture .submit-btn:hover {
+            background: var(--brand-soft);
+            color: var(--brand);
+        }
+
+        .lead-capture .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .privacy-note {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        /* Success state */
+        .success-msg {
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        .success-msg .check {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .success-msg h3 {
+            font-family: var(--font-serif);
+            font-size: 1.2rem;
+            margin: 0 0 6px;
+            color: #ffffff;
+        }
+
+        .success-msg p {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 0;
+        }
+
+        /* Validation error */
+        .input-error {
+            border-color: var(--coral) !important;
+        }
+
+        .error-msg {
+            font-size: 0.75rem;
+            color: var(--coral);
+            margin-top: 4px;
+        }
+
+        /* Footer */
+        .footer-credit {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--ink-soft);
+            z-index: 2;
+            position: relative;
+        }
+
+        .footer-credit a {
+            color: var(--brand);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="calculator-card">
+
+        <!-- BRAND HEADER -->
+        <div class="brand-header">
+            <a href="https://vikflow.com" target="_blank" class="brand-logo">
+                <img src="../logo.svg" alt="VikFlow" style="height: 24px; width: auto;">
+                <span>VikFlow<span style="color: #3B82F6;">.</span></span>
+            </a>
+            <span class="brand-badge">Free Tool</span>
+        </div>
+
+        <!-- PROGRESS -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="p1" style="width: 100%;"></div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="p2"></div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="p3"></div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="p4"></div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════
+         STEP 1: MONTHLY BILL (Slider)
+         ═══════════════════════════════ -->
+        <div class="step active" id="step-1">
+            <div class="eyebrow">Solar Estimator</div>
+            <h2>What's your <span class="display-italic">monthly</span> electric bill?</h2>
+            <p class="subtitle">Drag the slider. We'll calculate your solar potential instantly.</p>
+
+            <div class="bill-card">
+                <div class="bill-display">$<span id="billValue">200</span><span class="bill-sub">/mo</span></div>
+                <div class="bill-kwh" id="kwhEstimate">~1,176 kWh/month</div>
+                <input type="range" id="monthlyBill" min="50" max="800" step="10" value="200"
+                    oninput="updateBillDisplay(this.value)">
+            </div>
+
+            <button class="primary-btn" onclick="goToStep(2)">Next: Your Location →</button>
+        </div>
+
+        <!-- ═══════════════════════════════
+         STEP 2: ZIP CODE
+         ═══════════════════════════════ -->
+        <div class="step" id="step-2">
+            <div class="eyebrow">Location</div>
+            <h2>Where is the <span class="display-italic">property</span> located?</h2>
+            <p class="subtitle">Your ZIP code helps us estimate local sun hours and utility rates.</p>
+
+            <div class="form-group">
+                <label for="zipCode">ZIP Code</label>
+                <input type="text" id="zipCode" placeholder="e.g. 85001" maxlength="5" inputmode="numeric"
+                    pattern="[0-9]*">
+                <div class="error-msg" id="zipError" style="display:none;">Please enter a valid 5-digit ZIP code.</div>
+            </div>
+
+            <button class="primary-btn" onclick="validateZipAndProceed()">Next: Roof Details →</button>
+            <button class="secondary-btn" onclick="goToStep(1)">← Back</button>
+        </div>
+
+        <!-- ═══════════════════════════════
+         STEP 3: ROOF DETAILS
+         ═══════════════════════════════ -->
+        <div class="step" id="step-3">
+            <div class="eyebrow">Roof Details</div>
+            <h2>Tell us about your <span class="display-italic">roof</span></h2>
+            <p class="subtitle">This helps refine the estimate. Just pick what looks right.</p>
+
+            <label>Roof Shading</label>
+            <div class="option-grid">
+                <div class="option-btn active" onclick="selectOption(this, 'shade', 1.0)">
+                    <span class="option-icon">☀️</span> Full Sun
+                </div>
+                <div class="option-btn" onclick="selectOption(this, 'shade', 0.85)">
+                    <span class="option-icon">⛅</span> Partial
+                </div>
+                <div class="option-btn" onclick="selectOption(this, 'shade', 0.70)">
+                    <span class="option-icon">🌳</span> Heavy
+                </div>
+            </div>
+
+            <label>Roof Type</label>
+            <div class="option-grid-2">
+                <div class="option-btn active" onclick="selectOption(this, 'roof', 'pitched')">
+                    <span class="option-icon">🏠</span> Pitched
+                </div>
+                <div class="option-btn" onclick="selectOption(this, 'roof', 'flat')">
+                    <span class="option-icon">🏢</span> Flat
+                </div>
+            </div>
+
+            <button class="primary-btn" onclick="calculateResults()">See My Solar Estimate →</button>
+            <button class="secondary-btn" onclick="goToStep(2)">← Back</button>
+        </div>
+
+        <!-- ═══════════════════════════════
+         STEP 4: RESULTS + LEAD CAPTURE
+         ═══════════════════════════════ -->
+        <div class="step" id="step-4">
+            <div class="eyebrow">Your Estimate</div>
+
+            <div class="savings-hero">
+                <div class="savings-label">Estimated Annual Savings</div>
+                <div class="savings-amount">$<span id="resSavings">0</span></div>
+                <div class="savings-period">per year on electricity</div>
+                <div class="savings-context" id="savingsContext"></div>
+            </div>
+
+            <div class="results-grid">
+                <div class="result-row">
+                    <span class="result-label">System Size</span>
+                    <span class="result-value" id="resSystem">—</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Panels Needed</span>
+                    <span class="result-value" id="resPanels">—</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Roof Area Required</span>
+                    <span class="result-value" id="resRoof">—</span>
+                </div>
+                <div class="result-row highlight">
+                    <span class="result-label">Estimated Cost (Before Incentives)</span>
+                    <span class="result-value" id="resCost">—</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Estimated Payback Period</span>
+                    <span class="result-value" id="resPayback">—</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">25-Year Savings</span>
+                    <span class="result-value" id="res25Year">—</span>
+                </div>
+            </div>
+
+            <p style="font-size: 0.75rem; color: var(--ink-soft); text-align: center; margin: 0 0 4px;">
+                Based on <span id="resSunHours">—</span> peak sun hours/day for ZIP <span id="resZip">—</span> · 400W
+                panels · <span id="resCostWatt">—</span>/W installed
+            </p>
+
+            <!-- LEAD CAPTURE (dark section at bottom) -->
+            <div class="lead-capture" id="leadForm">
+                <h3>Get your detailed report</h3>
+                <p>Panel layout, financing options, and local installer quotes — sent to your inbox.</p>
+
+                <div class="form-group">
+                    <input type="text" id="fullName" placeholder="Full Name" required>
+                </div>
+                <div class="form-group">
+                    <input type="email" id="email" placeholder="Email Address" required>
+                </div>
+                <div class="form-group">
+                    <input type="tel" id="phone" placeholder="Phone Number (optional)">
+                </div>
+
+                <button class="submit-btn" id="submitBtn" onclick="submitLead()">Send My Full Report →</button>
+                <div class="privacy-note">No spam. Your data stays private. Powered by VikFlow.</div>
+            </div>
+
+            <!-- Success state (replaces form) -->
+            <div class="lead-capture" id="leadSuccess" style="display: none;">
+                <div class="success-msg">
+                    <div class="check">✓</div>
+                    <h3>Report on its way!</h3>
+                    <p>A solar specialist will reach out within 24 hours with your detailed breakdown.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer-credit">
+        Powered by <a href="https://vikflow.com" target="_blank">VikFlow Operations</a>
+    </div>
+
+    <script>
+        // ═══════════════════════════════
+        // CONFIGURATION
+        // ═══════════════════════════════
+
+        const WEBHOOK_URL = "https://your-webhook-endpoint.com/solar-lead";
+
+        // 2026 solar constants (updated — no federal ITC for homeowner systems)
+        const PANEL_WATT = 400;           // Standard residential panel 2026
+        const DERATE_FACTOR = 0.82;       // System losses (inverter, wiring, temp, soiling)
+        const COST_PER_WATT = 2.90;       // 2026 US residential median $/W gross
+        const PANEL_SQFT = 17.5;          // ~5.4ft x 3.25ft per panel
+        const ANNUAL_DEGRADATION = 0.005; // 0.5% per year
+        const UTILITY_ESCALATION = 0.03;  // 3% annual utility rate increase
+
+        // Peak sun hours by first digit of ZIP (approximate US regions)
+        // More granular than state-level, good enough for estimates
+        const SUN_HOURS_BY_ZIP = {
+            '0': 4.2,  // Northeast (CT, MA, ME, NH, NJ, NY, PR, RI, VT)
+            '1': 4.2,  // Northeast (DE, NY, PA)
+            '2': 4.5,  // Mid-Atlantic (DC, MD, NC, SC, VA, WV)
+            '3': 5.0,  // Southeast (AL, FL, GA, MS, TN)
+            '4': 4.3,  // Midwest (IN, KY, MI, OH)
+            '5': 4.6,  // Upper Midwest (IA, MN, MT, ND, SD, WI)
+            '6': 4.8,  // Central (IL, KS, MO, NE)
+            '7': 5.3,  // South/Southwest (AR, LA, OK, TX)
+            '8': 5.8,  // Mountain/Southwest (AZ, CO, ID, NM, NV, UT, WY)
+            '9': 5.2   // West Coast (AK, CA, HI, OR, WA)
+        };
+
+        // Average utility rates by ZIP first digit ($/kWh)
+        const UTILITY_RATES = {
+            '0': 0.24,  // Northeast
+            '1': 0.22,  // Northeast
+            '2': 0.15,  // Mid-Atlantic
+            '3': 0.14,  // Southeast
+            '4': 0.14,  // Midwest
+            '5': 0.14,  // Upper Midwest
+            '6': 0.15,  // Central
+            '7': 0.13,  // South/Southwest
+            '8': 0.14,  // Mountain/Southwest
+            '9': 0.22   // West Coast (CA drives this up)
+        };
+
+        // ═══════════════════════════════
+        // STATE
+        // ═══════════════════════════════
+
+        let shadeFactor = 1.0;
+        let roofType = 'pitched';
+        let computedData = {};
+
+        // ═══════════════════════════════
+        // URL PERSONALIZATION
+        // ═══════════════════════════════
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const city = params.get('city');
+            const company = params.get('company');
+
+            if (company) {
+                document.querySelector("#step-1 h2").innerHTML =
+                    `Solar Estimate for <span class="display-italic">${company}</span> Customers`;
+            } else if (city) {
+                document.querySelector("#step-1 h2").innerHTML =
+                    `How much can <span class="display-italic">${city}</span> homeowners save?`;
+            }
+        });
+
+        // ═══════════════════════════════
+        // BILL SLIDER
+        // ═══════════════════════════════
+
+        function updateBillDisplay(val) {
+            document.getElementById('billValue').innerText = val;
+            // Estimate kWh using national average rate
+            const estimatedKwh = Math.round(val / 0.17);
+            document.getElementById('kwhEstimate').innerText = `~${estimatedKwh.toLocaleString()} kWh/month`;
+
+            // Update slider fill
+            const slider = document.getElementById('monthlyBill');
+            const pct = ((val - slider.min) / (slider.max - slider.min)) * 100;
+            slider.style.background = `linear-gradient(to right, var(--brand) ${pct}%, var(--border) ${pct}%)`;
+        }
+
+        // Init slider fill
+        updateBillDisplay(200);
+
+        // ═══════════════════════════════
+        // NAVIGATION
+        // ═══════════════════════════════
+
+        function goToStep(num) {
+            document.querySelectorAll('.step').forEach(s => {
+                s.classList.remove('active');
+                s.style.display = 'none';
+            });
+            const target = document.getElementById(`step-${num}`);
+            target.style.display = 'block';
+            // Trigger animation
+            void target.offsetWidth;
+            target.classList.add('active');
+
+            // Update progress bars
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`p${i}`).style.width = i <= num ? '100%' : '0%';
+            }
+        }
+
+        // ═══════════════════════════════
+        // OPTIONS
+        // ═══════════════════════════════
+
+        function selectOption(el, type, value) {
+            // Deselect siblings
+            el.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+
+            if (type === 'shade') shadeFactor = value;
+            if (type === 'roof') roofType = value;
+        }
+
+        // ═══════════════════════════════
+        // VALIDATION
+        // ═══════════════════════════════
+
+        function validateZipAndProceed() {
+            const zip = document.getElementById('zipCode').value.trim();
+            const zipError = document.getElementById('zipError');
+            const zipInput = document.getElementById('zipCode');
+
+            if (!zip || zip.length !== 5 || !/^\d{5}$/.test(zip)) {
+                zipInput.classList.add('input-error');
+                zipError.style.display = 'block';
+                return;
+            }
+
+            zipInput.classList.remove('input-error');
+            zipError.style.display = 'none';
+            goToStep(3);
+        }
+
+        // ═══════════════════════════════
+        // CALCULATION
+        // ═══════════════════════════════
+
+        function calculateResults() {
+            const bill = parseFloat(document.getElementById('monthlyBill').value);
+            const zip = document.getElementById('zipCode').value.trim();
+            const zipFirst = zip.charAt(0);
+
+            // Get regional data
+            const peakSunHours = SUN_HOURS_BY_ZIP[zipFirst] || 4.5;
+            const utilityRate = UTILITY_RATES[zipFirst] || 0.17;
+
+            // Roof type adjustment (flat roofs get slightly less production)
+            const roofFactor = roofType === 'flat' ? 0.90 : 1.0;
+
+            // Core calculations
+            const monthlyKwh = bill / utilityRate;
+            const annualKwh = monthlyKwh * 12;
+            const effectiveSunHours = peakSunHours * shadeFactor * roofFactor;
+
+            // System sizing: Daily kWh needed / (sun hours × derate)
+            const dailyKwh = monthlyKwh / 30;
+            const systemKw = dailyKwh / (effectiveSunHours * DERATE_FACTOR);
+            const panels = Math.ceil((systemKw * 1000) / PANEL_WATT);
+            const actualSystemKw = (panels * PANEL_WATT) / 1000;
+
+            // Cost (no federal ITC in 2026 for homeowner systems)
+            const grossCost = Math.round(actualSystemKw * 1000 * COST_PER_WATT);
+
+            // Annual savings (85% offset typical — net metering isn't always 1:1)
+            const annualSavings = Math.round(bill * 12 * 0.85);
+
+            // Payback (simple)
+            const paybackYears = (grossCost / annualSavings).toFixed(1);
+
+            // 25-year savings (with utility escalation and panel degradation)
+            let totalSavings25 = 0;
+            for (let y = 1; y <= 25; y++) {
+                const degradedOutput = 1 - (ANNUAL_DEGRADATION * y);
+                const escalatedRate = Math.pow(1 + UTILITY_ESCALATION, y);
+                totalSavings25 += annualSavings * degradedOutput * escalatedRate;
+            }
+            totalSavings25 = Math.round(totalSavings25);
+
+            // Roof area
+            const roofSqft = Math.round(panels * PANEL_SQFT);
+
+            // Store
+            computedData = {
+                monthlyBill: bill,
+                monthlyKwh: Math.round(monthlyKwh),
+                annualKwh: Math.round(annualKwh),
+                systemKw: actualSystemKw.toFixed(1),
+                panels,
+                grossCost,
+                annualSavings,
+                paybackYears,
+                totalSavings25,
+                roofSqft,
+                peakSunHours,
+                utilityRate,
+                zipCode: zip,
+                shadeFactor,
+                roofType
+            };
+
+            // Populate results
+            animateCounter('resSavings', 0, annualSavings, 1200);
+            document.getElementById('resSystem').innerText = `${actualSystemKw.toFixed(1)} kW`;
+            document.getElementById('resPanels').innerText = `${panels} panels`;
+            document.getElementById('resRoof').innerText = `~${roofSqft} sq ft`;
+            document.getElementById('resCost').innerText = `$${grossCost.toLocaleString()}`;
+            document.getElementById('resPayback').innerText = `${paybackYears} years`;
+            document.getElementById('res25Year').innerText = `$${totalSavings25.toLocaleString()}`;
+            document.getElementById('resZip').innerText = zip;
+            document.getElementById('resSunHours').innerText = peakSunHours;
+            document.getElementById('resCostWatt').innerText = `$${COST_PER_WATT.toFixed(2)}`;
+
+            // Context message
+            const monthsSaved = Math.round(annualSavings / bill);
+            document.getElementById('savingsContext').innerHTML =
+                `That's like getting <strong>${monthsSaved} months of electricity free</strong> every year.`;
+
+            goToStep(4);
+        }
+
+        // ═══════════════════════════════
+        // ANIMATED COUNTER (WOW MOMENT)
+        // ═══════════════════════════════
+
+        function animateCounter(elementId, start, end, duration) {
+            const el = document.getElementById(elementId);
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(start + (end - start) * eased);
+                el.innerText = current.toLocaleString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // ═══════════════════════════════
+        // LEAD SUBMISSION
+        // ═══════════════════════════════
+
+        async function submitLead() {
+            const name = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const btn = document.getElementById('submitBtn');
+
+            // Basic validation
+            if (!name) {
+                document.getElementById('fullName').classList.add('input-error');
+                return;
+            }
+            if (!email || !email.includes('@')) {
+                document.getElementById('email').classList.add('input-error');
+                return;
+            }
+
+            // Clear errors
+            document.querySelectorAll('.lead-capture input').forEach(i => i.classList.remove('input-error'));
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Sending...';
+
+            const payload = {
+                lead_info: {
+                    full_name: name,
+                    email: email,
+                    phone: phone || "Not Provided",
+                    zip_code: computedData.zipCode,
+                    submitted_at: new Date().toISOString()
+                },
+                lead_quality: phone ? "HIGH_INTENT" : "STANDARD",
+                inputs: {
+                    monthly_bill: computedData.monthlyBill,
+                    shade_factor: computedData.shadeFactor,
+                    roof_type: computedData.roofType
+                },
+                estimates: computedData
+            };
+
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                console.error("Webhook error:", err);
+            }
+
+            // Show success
+            document.getElementById('leadForm').style.display = 'none';
+            document.getElementById('leadSuccess').style.display = 'block';
+        }
+
+        // Remove error class on input
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', () => input.classList.remove('input-error'));
+        });
+    </script>
+
+</body>
+
+</html>

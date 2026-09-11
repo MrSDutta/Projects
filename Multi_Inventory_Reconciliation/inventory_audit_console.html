@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Console — Inventory Reconciliation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121417;
+    --bg-2:#0c0d0f;
+    --panel:#191c20;
+    --panel-2:#1f2328;
+    --border:rgba(255,255,255,.07);
+    --border-strong:rgba(255,255,255,.14);
+    --text:#eef1f4;
+    --text-dim:#8b93a1;
+    --text-faint:#565d68;
+    --accent:#f2a93b;
+    --accent-dim:rgba(242,169,59,.14);
+    --good:#3ecf8e;
+    --good-dim:rgba(62,207,142,.14);
+    --warn:#f2a93b;
+    --warn-dim:rgba(242,169,59,.14);
+    --bad:#ef5b5b;
+    --bad-dim:rgba(239,91,91,.14);
+    --mono:'IBM Plex Mono',monospace;
+    --sans:'IBM Plex Sans',sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-font-smoothing:antialiased}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:
+      radial-gradient(1200px 500px at 15% -10%, rgba(242,169,59,.06), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    min-height:100vh;
+  }
+  .wrap{max-width:1320px;margin:0 auto;padding:36px 32px 80px}
+
+  /* ---------- Header ---------- */
+  .console-header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    gap:24px;flex-wrap:wrap;
+    padding-bottom:24px;
+    border-bottom:1px solid var(--border);
+    margin-bottom:28px;
+  }
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+    color:var(--accent);text-transform:uppercase;margin:0 0 10px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-.01em}
+  .sub{margin:8px 0 0;color:var(--text-dim);font-size:14px;max-width:560px;line-height:1.5}
+  .header-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .status-row{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--text-dim)}
+  .status-pill{
+    display:flex;align-items:center;gap:6px;
+    padding:5px 10px;border-radius:999px;
+    border:1px solid var(--border-strong);
+    background:var(--panel-2);
+  }
+  .status-pill .led{width:7px;height:7px;border-radius:50%;background:var(--text-faint)}
+  .status-pill.live .led{background:var(--good);box-shadow:0 0 0 3px var(--good-dim)}
+  .status-pill.err .led{background:var(--bad);box-shadow:0 0 0 3px var(--bad-dim)}
+  @media (prefers-reduced-motion:no-preference){
+    .status-pill.live .led{animation:pulse 2s ease-in-out infinite}
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  button.connect{
+    font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.04em;
+    background:var(--accent);color:#1a1300;
+    border:none;padding:11px 18px;border-radius:8px;
+    cursor:pointer;text-transform:uppercase;
+    transition:filter .15s ease, transform .15s ease;
+  }
+  button.connect:hover{filter:brightness(1.08)}
+  button.connect:active{transform:translateY(1px)}
+  button.connect:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  button.connect[disabled]{opacity:.55;cursor:progress}
+
+  /* ---------- Overview gauges ---------- */
+  .overview{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+    margin-bottom:28px;
+  }
+  .gauge{
+    background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:18px 20px;
+  }
+  .gauge .g-label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase}
+  .gauge .g-value{font-family:var(--mono);font-size:34px;font-weight:600;margin-top:6px;line-height:1}
+  .gauge.total .g-value{color:var(--text)}
+  .gauge.match .g-value{color:var(--good)}
+  .gauge.monitor .g-value{color:var(--warn)}
+  .gauge.critical .g-value{color:var(--bad)}
+  .g-bar{height:4px;border-radius:2px;background:var(--panel-2);margin-top:14px;overflow:hidden}
+  .g-bar i{display:block;height:100%;border-radius:2px}
+  .gauge.total .g-bar i{background:var(--text-faint);width:100%}
+  .gauge.match .g-bar i{background:var(--good)}
+  .gauge.monitor .g-bar i{background:var(--warn)}
+  .gauge.critical .g-bar i{background:var(--bad)}
+  .g-share{font-family:var(--mono);font-size:11px;color:var(--text-faint);margin-top:8px}
+
+  /* ---------- Panel shell ---------- */
+  .panel{
+    background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;margin-bottom:20px;overflow:hidden;
+  }
+  .panel-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:18px 20px 14px;border-bottom:1px solid var(--border);
+  }
+  .panel-head h2{margin:0;font-size:14px;font-weight:600}
+  .panel-head .hint{font-family:var(--mono);font-size:11px;color:var(--text-faint)}
+  .panel-body{padding:18px 20px 20px}
+
+  /* ---------- Channel reliability ---------- */
+  .channel-row{display:grid;grid-template-columns:110px 1fr 60px;align-items:center;gap:16px;padding:9px 0}
+  .channel-row + .channel-row{border-top:1px solid var(--border)}
+  .channel-name{font-family:var(--mono);font-size:12px;color:var(--text);text-transform:uppercase;letter-spacing:.04em}
+  .stack{height:10px;border-radius:5px;overflow:hidden;display:flex;background:var(--panel-2)}
+  .stack span{height:100%}
+  .stack .seg-match{background:var(--good)}
+  .stack .seg-monitor{background:var(--warn)}
+  .stack .seg-critical{background:var(--bad)}
+  .channel-acc{font-family:var(--mono);font-size:13px;font-weight:600;text-align:right;color:var(--text)}
+
+  /* ---------- Ledger controls ---------- */
+  .ledger-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .search{
+    background:var(--bg-2);border:1px solid var(--border-strong);border-radius:8px;
+    padding:8px 12px;font-family:var(--mono);font-size:12px;color:var(--text);
+    min-width:200px;
+  }
+  .search::placeholder{color:var(--text-faint)}
+  .search:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .chip{
+    font-family:var(--mono);font-size:11px;letter-spacing:.03em;text-transform:uppercase;
+    padding:7px 12px;border-radius:999px;border:1px solid var(--border-strong);
+    background:transparent;color:var(--text-dim);cursor:pointer;
+  }
+  .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .chip.active{background:var(--panel-2);color:var(--text);border-color:var(--text-faint)}
+  .chip.f-match.active{color:var(--good);border-color:var(--good)}
+  .chip.f-monitor.active{color:var(--warn);border-color:var(--warn)}
+  .chip.f-critical.active{color:var(--bad);border-color:var(--bad)}
+
+  /* ---------- Table ---------- */
+  table{width:100%;border-collapse:collapse;margin-top:16px}
+  th{
+    text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--text-faint);padding:0 10px 10px;
+    cursor:pointer;user-select:none;white-space:nowrap;
+  }
+  th:hover{color:var(--text-dim)}
+  th .arrow{opacity:0;margin-left:3px}
+  th.sorted .arrow{opacity:1;color:var(--accent)}
+  td{padding:12px 10px;border-top:1px solid var(--border);font-size:13px;vertical-align:middle}
+  tr.row{cursor:pointer;transition:background .1s ease}
+  tr.row:hover{background:var(--panel-2)}
+  tr.row.selected{background:var(--accent-dim)}
+  td.sku{font-family:var(--mono);font-weight:600;color:var(--text)}
+  td.product{color:var(--text-dim)}
+  td.num{font-family:var(--mono);text-align:right;color:var(--text)}
+  .badge{
+    font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.04em;
+    padding:4px 9px;border-radius:5px;text-transform:uppercase;display:inline-block;
+  }
+  .badge.match{background:var(--good-dim);color:var(--good)}
+  .badge.monitor{background:var(--warn-dim);color:var(--warn)}
+  .badge.critical{background:var(--bad-dim);color:var(--bad)}
+  .badge.no_data{background:var(--panel-2);color:var(--text-faint)}
+
+  .spark{position:relative;height:6px;background:var(--panel-2);border-radius:3px;width:100px}
+  .spark .tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text-faint);left:50%}
+  .spark .fill{position:absolute;top:0;bottom:0;border-radius:3px}
+  .spark.match .fill{background:var(--good)}
+  .spark.monitor .fill{background:var(--warn)}
+  .spark.critical .fill{background:var(--bad)}
+
+  /* ---------- Inspection panel ---------- */
+  #inspect{display:none}
+  #inspect.open{display:block}
+  .insp-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+  .insp-sku{font-family:var(--mono);font-size:20px;font-weight:700}
+  .insp-product{color:var(--text-dim);font-size:13px;margin-top:4px}
+  .insp-close{
+    font-family:var(--mono);font-size:11px;color:var(--text-dim);
+    background:transparent;border:1px solid var(--border-strong);border-radius:6px;
+    padding:6px 10px;cursor:pointer;
+  }
+  .insp-close:hover{color:var(--text)}
+  .insp-master{font-family:var(--mono);font-size:11px;color:var(--text-faint);margin-bottom:16px;letter-spacing:.03em}
+  .insp-master b{color:var(--text)}
+
+  .gauge-row{
+    display:grid;grid-template-columns:100px 1fr 70px 90px;align-items:center;gap:14px;
+    padding:11px 0;
+  }
+  .gauge-row + .gauge-row{border-top:1px solid var(--border)}
+  .gauge-row .ch{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--text)}
+  .track{position:relative;height:22px;background:var(--bg-2);border-radius:6px;border:1px solid var(--border)}
+  .track .zone{position:absolute;top:0;bottom:0;background:var(--good-dim);left:calc(50% - 3%);width:6%;border-radius:3px}
+  .track .center{position:absolute;top:-2px;bottom:-2px;left:50%;width:2px;background:var(--text-faint)}
+  .track .marker{
+    position:absolute;top:2px;bottom:2px;width:10px;margin-left:-5px;
+    border-radius:3px;
+  }
+  .track .marker.match{background:var(--good)}
+  .track .marker.monitor{background:var(--warn)}
+  .track .marker.critical{background:var(--bad)}
+  .gauge-row .qty{font-family:var(--mono);font-size:13px;text-align:right;color:var(--text)}
+  .gauge-row .diff{font-family:var(--mono);font-size:12px;text-align:right}
+  .gauge-row .diff.match{color:var(--good)}
+  .gauge-row .diff.monitor{color:var(--warn)}
+  .gauge-row .diff.critical{color:var(--bad)}
+
+  /* ---------- Empty / error states ---------- */
+  .state{padding:56px 20px;text-align:center}
+  .state .glyph{font-family:var(--mono);font-size:11px;color:var(--text-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+  .state p{color:var(--text-dim);font-size:13px;max-width:380px;margin:0 auto;line-height:1.6}
+  .state.err p{color:var(--bad)}
+
+  @media (max-width:860px){
+    .overview{grid-template-columns:repeat(2,1fr)}
+    .channel-row{grid-template-columns:80px 1fr 50px}
+    table{display:block;overflow-x:auto}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="console-header">
+    <div>
+      <p class="eyebrow"><span class="dot"></span>Audit Console</p>
+      <h1>Inventory Reconciliation</h1>
+      <p class="sub">Live comparison of master inventory against every connected sales channel. Tolerance band: ±2 units.</p>
+    </div>
+    <div class="header-right">
+      <div class="status-row">
+        <span id="statusPill" class="status-pill"><span class="led"></span><span id="statusText">Idle</span></span>
+        <span id="lastSync"></span>
+      </div>
+      <button class="connect" id="connectBtn" onclick="loadDashboard()">Pull live data</button>
+    </div>
+  </div>
+
+  <div class="overview" id="overview">
+    <div class="gauge total">
+      <div class="g-label">Total SKUs</div>
+      <div class="g-value" id="total">—</div>
+      <div class="g-bar"><i style="width:0%"></i></div>
+      <div class="g-share">tracked across 5 channels</div>
+    </div>
+    <div class="gauge match">
+      <div class="g-label">Matched</div>
+      <div class="g-value" id="matched">—</div>
+      <div class="g-bar"><i id="matchedBar" style="width:0%"></i></div>
+      <div class="g-share" id="matchedShare">—</div>
+    </div>
+    <div class="gauge monitor">
+      <div class="g-label">Monitor</div>
+      <div class="g-value" id="monitor">—</div>
+      <div class="g-bar"><i id="monitorBar" style="width:0%"></i></div>
+      <div class="g-share" id="monitorShare">within ±2 units</div>
+    </div>
+    <div class="gauge critical">
+      <div class="g-label">Critical</div>
+      <div class="g-value" id="critical">—</div>
+      <div class="g-bar"><i id="criticalBar" style="width:0%"></i></div>
+      <div class="g-share" id="criticalShare">exceeds tolerance</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Channel Reliability</h2>
+      <span class="hint">Share of SKUs matched, monitored, or critical — per channel</span>
+    </div>
+    <div class="panel-body" id="channelPanel">
+      <div class="state"><div class="glyph">No data</div><p>Pull live data to compute channel accuracy.</p></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Audit Ledger</h2>
+      <div class="ledger-controls">
+        <input class="search" id="search" placeholder="Filter by SKU or product…" oninput="render()">
+        <button class="chip f-all active" onclick="setFilter('all')">All</button>
+        <button class="chip f-match" onclick="setFilter('match')">Match</button>
+        <button class="chip f-monitor" onclick="setFilter('monitor')">Monitor</button>
+        <button class="chip f-critical" onclick="setFilter('critical')">Critical</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="setSort('sku')" data-key="sku">SKU <span class="arrow">▾</span></th>
+            <th onclick="setSort('product')" data-key="product">Product <span class="arrow">▾</span></th>
+            <th onclick="setSort('master')" data-key="master">Master <span class="arrow">▾</span></th>
+            <th onclick="setSort('matchedChannels')" data-key="matchedChannels">Matched <span class="arrow">▾</span></th>
+            <th onclick="setSort('drift')" data-key="drift">Spread <span class="arrow">▾</span></th>
+            <th onclick="setSort('status')" data-key="status">Status <span class="arrow">▾</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="6"><div class="state"><div class="glyph">System idle</div><p>Press <strong style="color:var(--text)">Pull live data</strong> to fetch current channel readings.</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" id="inspect">
+    <div class="panel-body">
+      <div class="insp-head">
+        <div>
+          <div class="insp-sku" id="iSku"></div>
+          <div class="insp-product" id="iProduct"></div>
+        </div>
+        <button class="insp-close" onclick="closeInspect()">Close ✕</button>
+      </div>
+      <div class="insp-master">Master quantity: <b id="iMaster"></b> · source of truth</div>
+      <div id="iChannels"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const ENDPOINT = "https://automation.theworkflowengineer.ovh/webhook/9265bad0-09f3-410a-9280-1bed7ca862ec";
+const TOLERANCE = 2;
+
+let state = { products: [], summary: null, filter: 'all', search: '', sortKey: 'status', sortDir: 'asc', selected: null };
+
+function classify(diff){
+  if (diff === 0) return 'match';
+  if (Math.abs(diff) <= TOLERANCE) return 'monitor';
+  return 'critical';
+}
+
+function setPill(mode, text){
+  const pill = document.getElementById('statusPill');
+  pill.className = 'status-pill' + (mode ? ' ' + mode : '');
+  document.getElementById('statusText').textContent = text;
+}
+
+async function loadDashboard(){
+  const btn = document.getElementById('connectBtn');
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  setPill('', 'Connecting');
+  try{
+    const res = await fetch(ENDPOINT);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    state.products = data.products || [];
+    state.summary = data.summary || null;
+    setPill('live', 'Live');
+    const now = new Date();
+    document.getElementById('lastSync').textContent = 'Synced ' + now.toLocaleTimeString();
+    renderOverview();
+    renderChannels();
+    render();
+  }catch(err){
+    setPill('err', 'Connection failed');
+    document.getElementById('tbody').innerHTML =
+      '<tr><td colspan="6"><div class="state err"><div class="glyph">Fetch failed</div><p>Could not reach the audit endpoint. Check that the n8n webhook is active, then try again.</p></div></td></tr>';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Pull live data';
+  }
+}
+
+function renderOverview(){
+  const s = state.summary;
+  if(!s) return;
+  document.getElementById('total').textContent = s.total;
+  document.getElementById('matched').textContent = s.matched;
+  document.getElementById('monitor').textContent = s.monitored;
+  document.getElementById('critical').textContent = s.critical;
+  const pct = n => s.total ? Math.round((n / s.total) * 100) : 0;
+  document.getElementById('matchedBar').style.width = pct(s.matched) + '%';
+  document.getElementById('monitorBar').style.width = pct(s.monitored) + '%';
+  document.getElementById('criticalBar').style.width = pct(s.critical) + '%';
+  document.getElementById('matchedShare').textContent = pct(s.matched) + '% of tracked SKUs';
+  document.getElementById('criticalShare').textContent = pct(s.critical) + '% exceed tolerance';
+}
+
+function renderChannels(){
+  const names = ['shopify','amazon','ebay','etsy','tiktok'];
+  const counts = {};
+  names.forEach(n => counts[n] = { match:0, monitor:0, critical:0, total:0 });
+
+  state.products.forEach(p => {
+    names.forEach(ch => {
+      const val = p.channels ? p.channels[ch] : undefined;
+      if(val === undefined || val === null) return;
+      const diff = val - p.master;
+      const cls = classify(diff);
+      counts[ch][cls]++;
+      counts[ch].total++;
+    });
+  });
+
+  const panel = document.getElementById('channelPanel');
+  panel.innerHTML = '';
+  names.forEach(ch => {
+    const c = counts[ch];
+    const total = c.total || 1;
+    const mPct = (c.match / total) * 100;
+    const oPct = (c.monitor / total) * 100;
+    const cPct = (c.critical / total) * 100;
+    const acc = c.total ? Math.round((c.match / c.total) * 100) : 0;
+    const row = document.createElement('div');
+    row.className = 'channel-row';
+    row.innerHTML = `
+      <div class="channel-name">${ch}</div>
+      <div class="stack">
+        <span class="seg-match" style="width:${mPct}%"></span>
+        <span class="seg-monitor" style="width:${oPct}%"></span>
+        <span class="seg-critical" style="width:${cPct}%"></span>
+      </div>
+      <div class="channel-acc">${acc}%</div>`;
+    panel.appendChild(row);
+  });
+}
+
+function setFilter(f){
+  state.filter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  document.querySelector('.chip.f-' + f).classList.add('active');
+  render();
+}
+
+function setSort(key){
+  if(state.sortKey === key){
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+  }else{
+    state.sortKey = key;
+    state.sortDir = 'asc';
+  }
+  render();
+}
+
+const statusRank = { critical: 0, monitor: 1, match: 2, no_data: 3 };
+
+function render(){
+  state.search = document.getElementById('search').value.trim().toLowerCase();
+  let rows = state.products.filter(p => {
+    if(state.filter !== 'all' && p.status !== state.filter) return false;
+    if(state.search && !(p.sku.toLowerCase().includes(state.search) || (p.product||'').toLowerCase().includes(state.search))) return false;
+    return true;
+  });
+
+  rows.sort((a,b) => {
+    let av, bv;
+    if(state.sortKey === 'status'){ av = statusRank[a.status] ?? 9; bv = statusRank[b.status] ?? 9; }
+    else { av = a[state.sortKey]; bv = b[state.sortKey]; }
+    if(typeof av === 'string') av = av.toLowerCase();
+    if(typeof bv === 'string') bv = bv.toLowerCase();
+    if(av < bv) return state.sortDir === 'asc' ? -1 : 1;
+    if(av > bv) return state.sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  document.querySelectorAll('th').forEach(th => {
+    th.classList.toggle('sorted', th.dataset.key === state.sortKey);
+    const arrow = th.querySelector('.arrow');
+    if(th.dataset.key === state.sortKey) arrow.textContent = state.sortDir === 'asc' ? '▾' : '▴';
+  });
+
+  const tbody = document.getElementById('tbody');
+  if(rows.length === 0){
+    tbody.innerHTML = '<tr><td colspan="6"><div class="state"><div class="glyph">No matches</div><p>No SKUs fit the current filter. Try clearing the search or switching status.</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '';
+  rows.forEach(p => {
+    const vals = p.channels ? Object.values(p.channels).filter(v => v !== null && v !== undefined) : [];
+    const min = vals.length ? Math.min(...vals, p.master) : p.master;
+    const max = vals.length ? Math.max(...vals, p.master) : p.master;
+    const range = Math.max(max - min, 1);
+    const span = Math.min((p.drift / (p.master || 1)) * 300, 100);
+
+    const tr = document.createElement('tr');
+    tr.className = 'row' + (state.selected === p.sku ? ' selected' : '');
+    tr.innerHTML = `
+      <td class="sku">${p.sku}</td>
+      <td class="product">${p.product}</td>
+      <td class="num">${p.master}</td>
+      <td class="num">${p.matchedChannels}/5</td>
+      <td>
+        <div class="spark ${p.status}">
+          <div class="tick"></div>
+          <div class="fill" style="left:${50 - span/2}%;width:${Math.max(span,2)}%"></div>
+        </div>
+      </td>
+      <td><span class="badge ${p.status}">${p.status.replace('_',' ')}</span></td>`;
+    tr.onclick = () => openInspect(p);
+    tbody.appendChild(tr);
+  });
+}
+
+function openInspect(p){
+  state.selected = p.sku;
+  const panel = document.getElementById('inspect');
+  panel.classList.add('open');
+  document.getElementById('iSku').textContent = p.sku;
+  document.getElementById('iProduct').textContent = p.product;
+  document.getElementById('iMaster').textContent = p.master;
+
+  const wrap = document.getElementById('iChannels');
+  wrap.innerHTML = '';
+  Object.entries(p.channels || {}).forEach(([ch, val]) => {
+    if(val === null || val === undefined){
+      wrap.innerHTML += `
+        <div class="gauge-row">
+          <div class="ch">${ch}</div>
+          <div class="track"><div class="center"></div></div>
+          <div class="qty">—</div>
+          <div class="diff">no data</div>
+        </div>`;
+      return;
+    }
+    const diff = val - p.master;
+    const cls = classify(diff);
+    const pos = 50 + Math.max(Math.min((diff / (p.master || 1)) * 200, 45), -45);
+    wrap.innerHTML += `
+      <div class="gauge-row">
+        <div class="ch">${ch}</div>
+        <div class="track">
+          <div class="zone"></div>
+          <div class="center"></div>
+          <div class="marker ${cls}" style="left:${pos}%"></div>
+        </div>
+        <div class="qty">${val}</div>
+        <div class="diff ${cls}">${diff > 0 ? '+' : ''}${diff}</div>
+      </div>`;
+  });
+
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  render();
+}
+
+function closeInspect(){
+  state.selected = null;
+  document.getElementById('inspect').classList.remove('open');
+  render();
+}
+</script>
+</body>
+</html>

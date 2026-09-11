@@ -1,0 +1,19 @@
+{
+  "client": {
+    "name": "Client Name CRM",
+    "logo_letter": "C",
+    "primary_color": "#3b82f6"
+  },
+  "integrations": {
+    "n8n_webhook_lead_capture": "https://n8n.CLIENTDOMAIN.com/webhook/7300c6e1-b534-41af-8248-dac2d60be9ee",
+    "n8n_webhook_live_feed": "https://n8n.CLIENTDOMAIN.com/webhook/live-feed",
+    "n8n_webhook_templates": "https://n8n.CLIENTDOMAIN.com/webhook/update-email-templates",
+    "metabase_url": "https://dashboard.CLIENTDOMAIN.com/public/dashboard/PASTE_PUBLIC_DASHBOARD_ID_HERE"
+  },
+  "features": {
+    "template_editor": true,
+    "csv_importer": true,
+    "live_feed": true,
+    "analytics": true
+  }
+}

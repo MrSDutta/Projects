@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Address Validation Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1210;
+    --panel:#121a17;
+    --panel-2:#161f1b;
+    --line:#243530;
+    --line-soft:#1c2823;
+    --ink:#e6efe9;
+    --ink-dim:#8fa39a;
+    --ink-faint:#5a6e66;
+    --amber:#e0a447;
+    --green:#5fd0a0;
+    --red:#e0724f;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  body{
+    padding:40px 24px 80px;
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size:32px 32px;
+    background-position:center top;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  /* Header */
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--line);
+    padding-bottom:20px;margin-bottom:28px;flex-wrap:wrap;gap:16px;
+  }
+  .brand{display:flex;flex-direction:column;gap:6px;}
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+    color:var(--amber);text-transform:uppercase;
+  }
+  h1{font-size:24px;font-weight:600;letter-spacing:-.01em;}
+  .timestamp{font-family:var(--mono);font-size:11px;color:var(--ink-faint);text-align:right;line-height:1.6;}
+  .timestamp b{color:var(--ink-dim);font-weight:500;}
+  .head-controls{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+  .refresh-btn{
+    font-family:var(--mono);font-size:11px;color:var(--ink-dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;
+    padding:6px 12px;cursor:pointer;transition:border-color .15s, color .15s;
+  }
+  .refresh-btn:hover{border-color:var(--green);color:var(--green);}
+  .refresh-btn:disabled{opacity:.5;cursor:default;}
+  .error-box{
+    font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--red);
+    background:rgba(224,114,79,.08);border:1px solid rgba(224,114,79,.3);
+    border-radius:8px;padding:14px 16px;margin-bottom:24px;
+  }
+  .error-box code{background:rgba(224,114,79,.15);padding:1px 5px;border-radius:4px;}
+
+  /* Summary strip */
+  .summary{
+    display:grid;grid-template-columns:repeat(5,1fr);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    margin-bottom:36px;background:var(--panel);
+  }
+  .stat{
+    padding:18px 16px;border-right:1px solid var(--line);position:relative;
+  }
+  .stat:last-child{border-right:none;}
+  .stat .num{font-family:var(--mono);font-size:26px;font-weight:600;line-height:1;}
+  .stat .lbl{font-size:11px;color:var(--ink-dim);margin-top:8px;text-transform:uppercase;letter-spacing:.06em;}
+  .stat.ok .num{color:var(--green);}
+  .stat.warn .num{color:var(--amber);}
+  .stat.bad .num{color:var(--red);}
+  .stat.dim .num{color:var(--ink-faint);}
+
+  /* Section label */
+  .section-label{
+    font-family:var(--mono);font-size:11px;color:var(--ink-faint);
+    letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .section-label::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  /* Order card */
+  .orders{display:flex;flex-direction:column;gap:16px;}
+  .card{
+    border:1px solid var(--line);border-radius:10px;background:var(--panel);
+    overflow:hidden;
+  }
+  .card-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 18px;border-bottom:1px solid var(--line);
+    background:var(--panel-2);flex-wrap:wrap;gap:10px;
+  }
+  .cust{display:flex;flex-direction:column;gap:3px;}
+  .cust .name{font-weight:600;font-size:14.5px;}
+  .cust .meta{font-family:var(--mono);font-size:11px;color:var(--ink-faint);}
+  .head-right{display:flex;align-items:center;gap:10px;}
+  .badge{
+    font-family:var(--mono);font-size:10.5px;font-weight:600;
+    padding:4px 9px;border-radius:100px;letter-spacing:.03em;
+    text-transform:uppercase;white-space:nowrap;
+  }
+  .badge.corrections{background:rgba(224,164,71,.12);color:var(--amber);border:1px solid rgba(224,164,71,.3);}
+  .badge.ready{background:rgba(95,208,160,.12);color:var(--green);border:1px solid rgba(95,208,160,.3);}
+  .badge.review{background:rgba(224,114,79,.12);color:var(--red);border:1px solid rgba(224,114,79,.3);}
+  .conf{font-family:var(--mono);font-size:12px;color:var(--ink-dim);}
+  .conf b{color:var(--ink);}
+
+  .diff{padding:16px 18px;display:grid;grid-template-columns:1fr 1fr;gap:0 20px;}
+  .diff-col .diff-label{
+    font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-faint);margin-bottom:8px;display:flex;align-items:center;gap:6px;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;display:inline-block;}
+  .dot.from{background:var(--ink-faint);}
+  .dot.to{background:var(--green);}
+  .addr-line{font-family:var(--mono);font-size:13px;line-height:1.65;}
+  .addr-line.from{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:rgba(90,110,102,.5);}
+  .addr-line.to{color:var(--ink);}
+  .addr-line .changed{color:var(--amber);text-decoration:none;}
+  .diff-col{padding-bottom:14px;}
+
+  .card-foot{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:11px 18px;border-top:1px solid var(--line-soft);
+    background:var(--panel-2);flex-wrap:wrap;gap:8px;
+  }
+  .geo{font-family:var(--mono);font-size:11px;color:var(--ink-faint);display:flex;gap:16px;flex-wrap:wrap;}
+  .geo span b{color:var(--ink-dim);font-weight:500;}
+  .flags{display:flex;gap:6px;flex-wrap:wrap;}
+  .flag{
+    font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;
+    background:var(--line-soft);color:var(--ink-faint);border:1px solid var(--line);
+  }
+  .flag.warn{color:var(--amber);border-color:rgba(224,164,71,.3);}
+
+  .note{
+    margin-top:24px;font-family:var(--mono);font-size:11px;color:var(--ink-faint);
+    border-left:2px solid var(--line);padding:10px 14px;line-height:1.7;
+  }
+
+  @media (max-width:640px){
+    .summary{grid-template-columns:repeat(2,1fr);}
+    .stat:nth-child(2){border-right:none;}
+    .diff{grid-template-columns:1fr;}
+    header{align-items:flex-start;}
+    .timestamp{text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="eyebrow">Address Validation · Audit Log</div>
+      <h1>Shipping Address Reconciliation</h1>
+    </div>
+    <div class="head-controls">
+      <button id="refreshBtn" class="refresh-btn" title="Refresh">↻ Refresh</button>
+      <div class="timestamp" id="ts">Loading…</div>
+    </div>
+  </header>
+
+  <div id="errorBox" class="error-box" style="display:none;"></div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="section-label">Order Records</div>
+  <div class="orders" id="orders"></div>
+
+  <div class="note" id="note"></div>
+
+</div>
+
+<script>
+const WEBHOOK_URL = "https://automation.theworkflowengineer.ovh/webhook/9265bad0-09f3-410a-9280-1bed7ca862ed";
+let PAYLOAD = { summary: {}, orders: [] };
+
+function escapeHtml(s){
+  return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function statusBadge(status){
+  if(status === 'READY') return {cls:'ready', label:'Ready'};
+  if(status === 'READY_WITH_CORRECTIONS') return {cls:'corrections', label:'Corrections applied'};
+  return {cls:'review', label:'Review required'};
+}
+
+function buildOriginalLines(o){
+  const oa = o.original_address || {};
+  const lines = [];
+  if(oa.address1) lines.push(oa.address1);
+  if(oa.address2 && oa.address2 !== 'null') lines.push(oa.address2);
+  const cityLine = [oa.city, oa.state && oa.state !== 'null' ? oa.state : null, oa.postal_code].filter(Boolean).join(', ');
+  if(cityLine) lines.push(cityLine);
+  if(oa.country) lines.push(oa.country);
+  return lines;
+}
+
+function buildCorrectedLines(o){
+  const ca = o.corrected_address || {};
+  const lines = [];
+  (ca.addressLines || []).forEach(l => lines.push(l));
+  const cityLine = [ca.locality, ca.administrativeArea, ca.postalCode].filter(Boolean).join(', ');
+  if(cityLine) lines.push(cityLine);
+  if(ca.regionCode) lines.push(ca.regionCode);
+  return lines;
+}
+
+// Dedupe: same order_id can appear multiple times across webhook events.
+// Keep the most complete record (latest one with formatted_address + place_id populated).
+function dedupe(orders){
+  const byId = new Map();
+  orders.forEach(o => {
+    const key = o.order_id;
+    const existing = byId.get(key);
+    const completeness = (o.formatted_address ? 1:0) + (o.place_id ? 1:0) + (o.latitude ? 1:0);
+    if(!existing || completeness >= existing._completeness){
+      o._completeness = completeness;
+      byId.set(key, o);
+    }
+  });
+  return Array.from(byId.values());
+}
+
+function render(){
+  const orders = dedupe(PAYLOAD.orders || []);
+
+  document.getElementById('ts').innerHTML =
+    `<b>${orders.length}</b> unique order${orders.length===1?'':'s'} · ${PAYLOAD.orders.length} sync event${PAYLOAD.orders.length===1?'':'s'} received<br>fetched ${new Date().toLocaleString('en-US', {dateStyle:'medium', timeStyle:'short'})}`;
+
+  // Summary strip
+  const ready = orders.filter(o => o.validation_status === 'READY').length;
+  const corrections = orders.filter(o => o.validation_status === 'READY_WITH_CORRECTIONS').length;
+  const review = orders.filter(o => !['READY','READY_WITH_CORRECTIONS'].includes(o.validation_status)).length;
+  const confidences = orders.map(o => parseFloat(o.confidence_score)).filter(n => !isNaN(n));
+  const avgConf = confidences.length ? (confidences.reduce((a,b)=>a+b,0)/confidences.length).toFixed(1) : '—';
+
+  document.getElementById('summary').innerHTML = `
+    <div class="stat"><div class="num">${orders.length}</div><div class="lbl">Total orders</div></div>
+    <div class="stat ok"><div class="num">${ready}</div><div class="lbl">Ready</div></div>
+    <div class="stat warn"><div class="num">${corrections}</div><div class="lbl">With corrections</div></div>
+    <div class="stat bad"><div class="num">${review}</div><div class="lbl">Review required</div></div>
+    <div class="stat dim"><div class="num">${avgConf}${avgConf!=='—'?'%':''}</div><div class="lbl">Avg. confidence</div></div>
+  `;
+
+  // Orders
+  const container = document.getElementById('orders');
+  container.innerHTML = orders.map(o => {
+    const badge = statusBadge(o.validation_status);
+    const fromLines = buildOriginalLines(o);
+    const toLines = buildCorrectedLines(o);
+    const verdict = (o.google_response && o.google_response.address && o.google_response.address.verdict) || {};
+    const unconfirmed = verdict.unconfirmedComponentTypes || (o.google_response && o.google_response.address && o.google_response.address.unconfirmedComponentTypes) || [];
+
+    return `
+    <div class="card">
+      <div class="card-head">
+        <div class="cust">
+          <div class="name">${escapeHtml(o.customer_name || 'Unnamed customer')}</div>
+          <div class="meta">Order ${escapeHtml(o.order_id)} · ${escapeHtml(o.customer_email || '—')}</div>
+        </div>
+        <div class="head-right">
+          <div class="conf">confidence <b>${escapeHtml(o.confidence_score)}%</b></div>
+          <div class="badge ${badge.cls}">${badge.label}</div>
+        </div>
+      </div>
+      <div class="diff">
+        <div class="diff-col">
+          <div class="diff-label"><span class="dot from"></span>submitted</div>
+          ${fromLines.map(l => `<div class="addr-line from">${escapeHtml(l)}</div>`).join('')}
+        </div>
+        <div class="diff-col">
+          <div class="diff-label"><span class="dot to"></span>validated</div>
+          ${toLines.map(l => `<div class="addr-line to">${escapeHtml(l)}</div>`).join('')}
+        </div>
+      </div>
+      <div class="card-foot">
+        <div class="geo">
+          ${o.latitude ? `<span><b>lat/lng</b> ${o.latitude.toFixed(5)}, ${o.longitude.toFixed(5)}</span>` : `<span><b>lat/lng</b> not geocoded</span>`}
+          <span><b>granularity</b> ${escapeHtml(verdict.validationGranularity || '—')}</span>
+        </div>
+        <div class="flags">
+          ${verdict.hasInferredComponents ? '<span class="flag warn">inferred component</span>' : ''}
+          ${unconfirmed.length ? `<span class="flag warn">unconfirmed: ${unconfirmed.map(escapeHtml).join(', ')}</span>` : ''}
+          ${verdict.addressComplete ? '<span class="flag">complete</span>' : '<span class="flag warn">incomplete</span>'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('note').textContent =
+    `Note: ${PAYLOAD.orders.length} webhook events referenced ${orders.length} distinct order${orders.length===1?'':'s'}. Records below show the most complete version received for each order.`;
+}
+
+async function load(){
+  const btn = document.getElementById('refreshBtn');
+  const errorBox = document.getElementById('errorBox');
+  errorBox.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = '↻ Loading…';
+  document.getElementById('ts').textContent = 'Fetching latest data…';
+
+  try {
+    const res = await fetch(WEBHOOK_URL, { method: 'GET', headers: { 'Accept': 'application/json' } });
+    if(!res.ok) throw new Error(`Webhook responded with ${res.status}`);
+    const data = await res.json();
+    PAYLOAD = data;
+    render();
+  } catch(err) {
+    errorBox.style.display = 'block';
+    errorBox.innerHTML = `
+      <b>Couldn't reach the webhook.</b> ${escapeHtml(err.message)}<br>
+      This is usually a CORS restriction — the n8n webhook needs to send
+      <code>Access-Control-Allow-Origin</code> for browser fetches to work from this page.
+      Enable CORS on the webhook node (or a "Respond to Webhook" node) and refresh.
+    `;
+    document.getElementById('ts').textContent = 'Fetch failed';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Refresh';
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

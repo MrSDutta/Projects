@@ -1,0 +1,9 @@
+name,email,company,linkedin,message,source,referred_by
+John Smith,john.smith@microsoft.com,Microsoft,https://linkedin.com/in/johnsmith,Interested in automating our lead qualification process,manual_upload,
+Sarah Lee,sarah.lee@salesforce.com,Salesforce,https://linkedin.com/in/sarahlee,Saw your LinkedIn post about CRM automation,manual_upload,
+Rahul Mehta,rahul.mehta@infosys.com,Infosys,https://linkedin.com/in/rahulmehta,Looking for a CRM solution for our B2B sales team,manual_upload,
+Priya Sharma,priya.sharma@wipro.com,Wipro,https://linkedin.com/in/priyasharma,Referred by a colleague who uses your system,manual_upload,James Wilson
+David Chen,david.chen@zoho.com,Zoho,https://linkedin.com/in/davidchen,Want to see how your system compares to what we have,manual_upload,
+Emma Wilson,emma.wilson@hubspot.com,HubSpot,https://linkedin.com/in/emmawilson,Exploring automation options for our sales team,manual_upload,
+Carlos Rodriguez,carlos@techbridge.io,TechBridge,https://linkedin.com/in/carlosrodriguez,Need help with lead scoring and segmentation,manual_upload,
+Aisha Patel,aisha.patel@lntecc.com,L&T Technology,https://linkedin.com/in/aishapatel,Interested in enterprise CRM automation,manual_upload,

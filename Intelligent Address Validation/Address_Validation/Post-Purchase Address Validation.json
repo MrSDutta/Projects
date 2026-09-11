@@ -1,0 +1,509 @@
+{
+  "name": "Post-Purchase Address Validation",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "topic": "orders/paid"
+      },
+      "type": "n8n-nodes-base.shopifyTrigger",
+      "typeVersion": 1,
+      "position": [
+        -992,
+        208
+      ],
+      "id": "380c8c4a-2bd4-40d4-a4e2-225341627ebb",
+      "name": "Shopify Trigger",
+      "webhookId": "aae88b87-8448-4288-a28a-eacb0dfeca6d",
+      "credentials": {
+        "shopifyOAuth2Api": {
+          "id": "Dmv0HgytLnkJ36Sc",
+          "name": "Shopify Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = $input.first().json;\nconst shipping = order.shipping_address || {};\nconst customer = order.customer || {};\n\nreturn [{\n  json: {\n    order_id: order.id,\n    order_number: order.order_number,\n    created_at: order.created_at,\n    updated_at: order.updated_at,\n\n    customer_id: customer.id,\n    customer_name: `${customer.first_name || \"\"} ${customer.last_name || \"\"}`.trim(),\n    customer_email: customer.email || order.email,\n    customer_phone: shipping.phone || customer.phone || order.phone,\n\n    address1: shipping.address1,\n    address2: shipping.address2,\n    city: shipping.city,\n    state: shipping.province,\n    postal_code: shipping.zip,\n    country: shipping.country,\n    country_code: shipping.country_code,\n\n    total_price: parseFloat(order.total_price),\n    currency: order.currency,\n    financial_status: order.financial_status,\n\n    validation_status: \"PENDING\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        208
+      ],
+      "id": "dfd3dc05-cc9c-466b-b21d-3384fc4c0f7a",
+      "name": "Extract_Order_Details"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO orders (\n    order_id,\n    customer_id,\n    customer_name,\n    customer_email,\n    customer_phone,\n    address1,\n    address2,\n    city,\n    state,\n    postal_code,\n    country,\n    country_code,\n    validation_status\n)\nVALUES (\n    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13\n)\nON CONFLICT (order_id)\nDO UPDATE SET\n    customer_id = EXCLUDED.customer_id,\n    customer_name = EXCLUDED.customer_name,\n    customer_email = EXCLUDED.customer_email,\n    customer_phone = EXCLUDED.customer_phone,\n    address1 = EXCLUDED.address1,\n    address2 = EXCLUDED.address2,\n    city = EXCLUDED.city,\n    state = EXCLUDED.state,\n    postal_code = EXCLUDED.postal_code,\n    country = EXCLUDED.country,\n    country_code = EXCLUDED.country_code,\n    validation_status = EXCLUDED.validation_status,\n    updated_at = NOW();",
+        "options": {
+          "queryReplacement": "={{$json.order_id}},\n{{$json.customer_id}},\n{{$json.customer_name}},\n{{$json.customer_email}},\n{{$json.customer_phone}},\n{{$json.address1}},\n{{$json.address2}},\n{{$json.city}},\n{{$json.state}},\n{{$json.postal_code}},\n{{$json.country}},\n{{$json.country_code}},\n{{$json.validation_status}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -544,
+        208
+      ],
+      "id": "e32ee1ae-a8d3-454b-bf03-dc4f3d67c9ff",
+      "name": "Insert_Order_Details",
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const google = $input.first().json.result;\nconst order = $('Extract_Order_Details').first().json;\nconst verdict = google.verdict || {};\nlet status;\nif (!verdict.addressComplete) {\n  status = \"REVIEW_REQUIRED\";\n} else if (\n  verdict.hasInferredComponents ||\n  verdict.hasUnconfirmedComponents\n) {\n  status = \"READY_WITH_CORRECTIONS\";\n} else {\n  status = \"READY\";\n}\nconst requires_review = status === \"REVIEW_REQUIRED\";\n// Rough confidence mapping from Google's verdict\nlet confidence_score = 50;\nif (verdict.addressComplete && verdict.validationGranularity === \"PREMISE\") {\n  confidence_score = 95;\n} else if (verdict.addressComplete) {\n  confidence_score = 80;\n} else if (verdict.hasInferredComponents) {\n  confidence_score = 60;\n}\nreturn [{\n  json: {\n    ...order,\n\n    validation_status: status,\n    requires_review,\n\n    original_address: {\n      address1: order.address1,\n      address2: order.address2,\n      city: order.city,\n      state: order.state,\n      postal_code: order.postal_code,\n      country: order.country,\n      country_code: order.country_code\n    },\n    corrected_address: google.address.postalAddress,\n    formatted_address: google.address.formattedAddress,\n    confidence_score,\n    google_response: google\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        208
+      ],
+      "id": "2f833241-da96-4ded-819d-2f1eba4d476b",
+      "name": "Validate_Address"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO address_validation_log (\n    order_id,\n    original_address,\n    corrected_address,\n    google_response,\n    confidence_score,\n    validation_status,\n    latitude,\n    longitude,\n    place_id,\n    formatted_address\n)\nVALUES (\n    $1,\n    $2::jsonb,\n    $3::jsonb,\n    $4::jsonb,\n    $5,\n    $6,\n    $7,\n    $8,\n    $9,\n    $4::jsonb->'address'->>'formattedAddress'\n);",
+        "options": {
+          "queryReplacement": "=1 {{$json.order_id}}\n2 {{JSON.stringify($json.original_address)}}\n3 {{JSON.stringify($json.corrected_address)}}\n4 {{JSON.stringify($json.google_response)}}\n5 {{$json.confidence_score}}\n6 {{$json.validation_status}}\n7 {{$json.google_response.geocode.location.latitude}}\n8 {{$json.google_response.geocode.location.longitude}}\n9 {{$json.google_response.geocode.placeId}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        128,
+        208
+      ],
+      "id": "2d678442-2f55-4ad7-a104-8f1841e56e1f",
+      "name": "Insert_into_Log",
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fd446146-d88f-44d8-9bfd-c41f290066d6",
+              "leftValue": "={{$json.requires_review}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        128,
+        16
+      ],
+      "id": "72ad3ed5-005b-4df6-88dc-f17a9e850454",
+      "name": "If_Review_needed"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders\nSET\n    validation_status = $1,\n    updated_at = NOW()\nWHERE order_id = $2;",
+        "options": {
+          "queryReplacement": "={{$json.validation_status}}\n{{$json.order_id}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        128,
+        400
+      ],
+      "id": "1d129deb-9ae3-46b2-866c-e063e03ca1e7",
+      "name": "Update_Order_Status",
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://automation.theworkflowengineer.ovh/webhook/9265bad0-09f3-410a-9280-warehouse",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"order_id\": \"{{ $json.order_id }}\",\n  \"order_number\": \"{{ $json.order_number }}\",\n  \"customer_name\": \"{{ $json.customer_name }}\",\n  \"customer_email\": \"{{ $json.customer_email }}\",\n  \"customer_phone\": \"{{ $json.customer_phone }}\",\n\n  \"formatted_address\": \"{{ $json.formatted_address }}\",\n\n  \"latitude\": \"{{$json.google_response.geocode.location.latitude}}\",\n  \"longitude\": \"{{$json.google_response.geocode.location.longitude}}\",\n\n  \"validation_status\": \"{{$json.validation_status}}\",\n\n  \"confidence_score\": \"{{$json.confidence_score}}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        352,
+        112
+      ],
+      "id": "47909201-0f61-47da-a627-b89150088a04",
+      "name": "Update_Warehouse"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BFB9LTWSC",
+          "mode": "id"
+        },
+        "text": "=🚨 Address Review Required\n\nOrder: {{$json.order_number}}\nCustomer:\n{{$json.customer_name}}\nReason:\nGoogle recommends manual review before fulfillment.\nDashboard:\nhttps://your-dashboard-url",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        352,
+        -80
+      ],
+      "id": "3decce61-4b41-4ddb-bef4-b80df2a99934",
+      "name": "Send a message Review",
+      "webhookId": "66518b5d-cd05-4cba-b10d-3d2029b3f54b",
+      "credentials": {
+        "slackApi": {
+          "id": "KxQ64P96WWIDoIqs",
+          "name": "Slack_account_ai.souvik"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BFB9LTWSC",
+          "mode": "id"
+        },
+        "text": "=📦 *Warehouse Order Created Successfully*\n\n*Warehouse Order ID:* {{$json.warehouse_order_id}}\n*Status:* {{$json.status}}\n*Warehouse:* {{$json.warehouse}}\n*Estimated Pick Time:* {{$json.estimated_pick_time}}\n\n:white_check_mark: The order has been accepted by the warehouse and is now queued for picking.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        112
+      ],
+      "id": "643feba7-3dea-45f9-9784-dec1f1d21347",
+      "name": "Send a message Order Created",
+      "webhookId": "b6a263b5-061c-414b-afaa-0ff62448d902",
+      "credentials": {
+        "slackApi": {
+          "id": "KxQ64P96WWIDoIqs",
+          "name": "Slack_account_ai.souvik"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "9265bad0-09f3-410a-9280-1bed7ca862ed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -992,
+        624
+      ],
+      "id": "0981d1f0-c969-4fc7-a9c9-54c5d3b7a84f",
+      "name": "Webhook",
+      "webhookId": "9265bad0-09f3-410a-9280-1bed7ca862ec"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    o.order_id,\n    o.customer_id,\n    o.customer_name,\n    o.customer_email,\n    o.customer_phone,\n\n    o.address1,\n    o.address2,\n    o.city,\n    o.state,\n    o.postal_code,\n    o.country,\n    o.country_code,\n\n    o.validation_status,\n\n    o.created_at,\n    o.updated_at,\n\n    l.confidence_score,\n    l.formatted_address,\n    l.latitude,\n    l.longitude,\n    l.place_id,\n\n    l.original_address,\n    l.corrected_address,\n\n    l.google_response\n\nFROM orders o\nLEFT JOIN address_validation_log l\n       ON o.order_id = l.order_id\n\nORDER BY o.created_at DESC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -768,
+        624
+      ],
+      "id": "31001dbd-ddb3-4455-9754-e7135419b50e",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -320,
+        624
+      ],
+      "id": "4be7246e-f9de-4f37-881f-6ad6bd83b4d8",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://addressvalidation.googleapis.com/v1:validateAddress?key=",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"address\": {\n    \"regionCode\": \"{{$('Extract_Order_Details').item.json.country_code}}\",\n    \"addressLines\": [\n      \"{{$('Extract_Order_Details').item.json.address1}}\"\n    ],\n    \"locality\": \"{{$('Extract_Order_Details').item.json.city}}\",\n    \"administrativeArea\": \"{{$('Extract_Order_Details').item.json.state}}\",\n    \"postalCode\": \"{{$('Extract_Order_Details').item.json.postal_code}}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -320,
+        208
+      ],
+      "id": "33a4cee3-68e4-4437-a760-5c0617c51a2a",
+      "name": "Google Map API"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders\nSET\n    warehouse_order_id = $1,\n    warehouse_status = $2,\n    warehouse_name = $3,\n    estimated_pick_time = $4,\n    updated_at = NOW()\nWHERE order_id = $5\nRETURNING\n    order_id,\n    warehouse_order_id,\n    warehouse_status AS status,\n    warehouse_name AS warehouse,\n    estimated_pick_time;",
+        "options": {
+          "queryReplacement": "={{ $json.warehouse_order_id }},{{ $json.warehouse_status }},{{ $json.warehouse_name }},{{ $json.estimated_pick_time }},{{ $json.order_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        576,
+        112
+      ],
+      "id": "38802771-300c-4268-a985-99595d287158",
+      "name": "Update_Warehouse_Status",
+      "credentials": {
+        "postgres": {
+          "id": "XvU8srQhM0siFrj7",
+          "name": "Postgres account vikflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $input.all().map(item => item.json);\n\nconst summary = {\n  totalOrders: orders.length,\n  ready: orders.filter(o => o.validation_status === \"READY\").length,\n  readyWithCorrections: orders.filter(o => o.validation_status === \"READY_WITH_CORRECTIONS\").length,\n  reviewRequired: orders.filter(o => o.validation_status === \"REVIEW_REQUIRED\").length,\n  averageConfidence:\n    orders.length > 0\n      ? Number(\n          (\n            orders.reduce((sum, o) => sum + (o.confidence_score || 0), 0) /\n            orders.length\n          ).toFixed(1)\n        )\n      : 0,\n};\n\nreturn [\n  {\n    json: {\n      summary,\n      orders,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        624
+      ],
+      "id": "7cf7cb92-d426-4495-b5ad-c59227d877b6",
+      "name": "Dashboard Format"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Shopify Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract_Order_Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_Order_Details": {
+      "main": [
+        [
+          {
+            "node": "Insert_Order_Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert_Order_Details": {
+      "main": [
+        [
+          {
+            "node": "Google Map API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate_Address": {
+      "main": [
+        [
+          {
+            "node": "Insert_into_Log",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update_Order_Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If_Review_needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert_into_Log": {
+      "main": [
+        []
+      ]
+    },
+    "Update_Order_Status": {
+      "main": [
+        []
+      ]
+    },
+    "If_Review_needed": {
+      "main": [
+        [
+          {
+            "node": "Send a message Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update_Warehouse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_Warehouse": {
+      "main": [
+        [
+          {
+            "node": "Update_Warehouse_Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Dashboard Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Map API": {
+      "main": [
+        [
+          {
+            "node": "Validate_Address",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_Warehouse_Status": {
+      "main": [
+        [
+          {
+            "node": "Send a message Order Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dashboard Format": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9bf60649-00f7-4ae9-ba40-8d3993d4f9c5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "41f2db6a31ec88fa3bb255e88f46e25c0eb8c38cb580272c45cd7d20fe13719a"
+  },
+  "nodeGroups": [],
+  "id": "tAKMSi7QyCuLoPnC",
+  "tags": []
+}

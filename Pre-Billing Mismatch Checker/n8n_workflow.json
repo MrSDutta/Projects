@@ -1,0 +1,152 @@
+{
+  "name": "VikFlow — Pre-Billing Mismatch Checker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 1 }]
+        }
+      },
+      "id": "trigger",
+      "name": "Hourly Check (or Webhook)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [220, 300],
+      "notes": "OPTION A: Runs every hour. OPTION B: Replace this node with a Webhook node and trigger it from your billing system (e.g., Stripe draft invoice webhook)."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, business_name, mismatch_tolerance, alert_channel, alert_destination FROM client_configs LIMIT 1;",
+        "additionalFields": {}
+      },
+      "id": "load_config",
+      "name": "Load Client Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [440, 300],
+      "credentials": { "postgres": { "id": "YOUR_SUPABASE_CREDENTIAL_ID", "name": "Supabase DB" } },
+      "notes": "Pulls the client's tolerance threshold and alert settings. For multi-tenant: loop through all configs instead of LIMIT 1."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT di.id AS draft_id, di.invoice_id, di.account_name, di.line_item, di.billed_unit_price, di.quantity, ap.id AS agreed_id, ap.agreed_unit_price, ap.source_reference, ABS(di.billed_unit_price - COALESCE(ap.agreed_unit_price, 0)) AS deviation, CASE WHEN ap.id IS NULL THEN 'unmatched' WHEN ABS(di.billed_unit_price - ap.agreed_unit_price) <= {{ $json.mismatch_tolerance }} THEN 'clean' ELSE 'flagged' END AS check_result FROM draft_invoices di LEFT JOIN agreed_pricing ap ON di.config_id = ap.config_id AND LOWER(TRIM(di.account_name)) = LOWER(TRIM(ap.account_name)) AND LOWER(TRIM(di.line_item)) = LOWER(TRIM(ap.line_item)) AND (ap.effective_until IS NULL OR ap.effective_until >= di.invoice_date) WHERE di.config_id = '{{ $json.id }}' AND di.status = 'pending_review';",
+        "additionalFields": {}
+      },
+      "id": "run_comparison",
+      "name": "Compare: Billed vs Agreed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [660, 300],
+      "credentials": { "postgres": { "id": "YOUR_SUPABASE_CREDENTIAL_ID", "name": "Supabase DB" } },
+      "notes": "Core logic: joins draft invoices against agreed pricing, calculates deviation, labels each line as clean/flagged/unmatched."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.check_result }}",
+              "operation": "equals",
+              "value2": "flagged"
+            }
+          ]
+        }
+      },
+      "id": "filter_flagged",
+      "name": "Filter: Flagged Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [880, 200],
+      "notes": "Only mismatches continue to the alert + logging path. Clean items skip ahead to status update."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.check_result }}",
+              "operation": "equals",
+              "value2": "unmatched"
+            }
+          ]
+        }
+      },
+      "id": "filter_unmatched",
+      "name": "Filter: Unmatched",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [880, 400],
+      "notes": "Invoices with no agreed pricing on file — flagged differently so they don't get lost."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO mismatch_log (config_id, draft_invoice_id, agreed_pricing_id, account_name, line_item, agreed_price, billed_price, deviation, match_status) VALUES ('{{ $('Load Client Config').item.json.id }}', '{{ $json.draft_id }}', {{ $json.agreed_id ? \"'\" + $json.agreed_id + \"'\" : 'NULL' }}, '{{ $json.account_name }}', '{{ $json.line_item }}', {{ $json.agreed_unit_price || 'NULL' }}, {{ $json.billed_unit_price }}, {{ $json.deviation }}, '{{ $json.check_result }}');",
+        "additionalFields": {}
+      },
+      "id": "log_mismatch",
+      "name": "Log to Mismatch Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1100, 200],
+      "credentials": { "postgres": { "id": "YOUR_SUPABASE_CREDENTIAL_ID", "name": "Supabase DB" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE draft_invoices SET status = '{{ $json.check_result }}' WHERE id = '{{ $json.draft_id }}';",
+        "additionalFields": {}
+      },
+      "id": "update_invoice_status",
+      "name": "Update Invoice Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1320, 300],
+      "credentials": { "postgres": { "id": "YOUR_SUPABASE_CREDENTIAL_ID", "name": "Supabase DB" } }
+    },
+    {
+      "parameters": {
+        "channel": "#billing-alerts",
+        "text": "🚩 *Billing Mismatch Detected*\n\n*Account:* {{ $json.account_name }}\n*Line Item:* {{ $json.line_item }}\n*Agreed Price:* ${{ $json.agreed_unit_price }}\n*Billed Price:* ${{ $json.billed_unit_price }}\n*Deviation:* ${{ $json.deviation }}\n\nReview and take action on the dashboard.",
+        "otherOptions": {}
+      },
+      "id": "slack_alert",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1320, 100],
+      "credentials": { "slackApi": { "id": "YOUR_SLACK_CREDENTIAL_ID", "name": "Slack" } },
+      "notes": "OPTIONAL: Replace with Email (SendGrid/SMTP) node if the client prefers email alerts. Or keep both."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO run_log (config_id, total_invoices_checked, clean_count, flagged_count, unmatched_count) VALUES ('{{ $('Load Client Config').item.json.id }}', {{ $('Compare: Billed vs Agreed').all().length }}, {{ $('Compare: Billed vs Agreed').all().filter(i => i.json.check_result === 'clean').length }}, {{ $('Compare: Billed vs Agreed').all().filter(i => i.json.check_result === 'flagged').length }}, {{ $('Compare: Billed vs Agreed').all().filter(i => i.json.check_result === 'unmatched').length }});",
+        "additionalFields": {}
+      },
+      "id": "log_run",
+      "name": "Log Run Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1540, 300],
+      "credentials": { "postgres": { "id": "YOUR_SUPABASE_CREDENTIAL_ID", "name": "Supabase DB" } }
+    }
+  ],
+  "connections": {
+    "Hourly Check (or Webhook)": { "main": [[ { "node": "Load Client Config", "type": "main", "index": 0 } ]] },
+    "Load Client Config": { "main": [[ { "node": "Compare: Billed vs Agreed", "type": "main", "index": 0 } ]] },
+    "Compare: Billed vs Agreed": { "main": [[ { "node": "Filter: Flagged Only", "type": "main", "index": 0 }, { "node": "Filter: Unmatched", "type": "main", "index": 0 }, { "node": "Log Run Summary", "type": "main", "index": 0 } ]] },
+    "Filter: Flagged Only": { "main": [[ { "node": "Log to Mismatch Table", "type": "main", "index": 0 } ]] },
+    "Filter: Unmatched": { "main": [[ { "node": "Log to Mismatch Table", "type": "main", "index": 0 } ]] },
+    "Log to Mismatch Table": { "main": [[ { "node": "Update Invoice Status", "type": "main", "index": 0 }, { "node": "Slack Alert", "type": "main", "index": 0 } ]] },
+    "Update Invoice Status": { "main": [[ { "node": "Log Run Summary", "type": "main", "index": 0 } ]] }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

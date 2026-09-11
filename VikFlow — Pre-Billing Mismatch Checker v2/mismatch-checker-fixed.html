@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pre-Billing Mismatch Checker — VikFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #0A0D13; --surface: #12161F; --surface-raised: #171C28; --surface-hover: #1C2230;
+    --border: #232939; --border-hover: #313A52;
+    --text: #EDEFF3; --text-muted: #8B93A7; --text-dim: #565F73;
+    --orange: #FF582E; --blue: #0A85FF;
+    --gradient: linear-gradient(135deg, var(--orange) 0%, var(--blue) 100%);
+    --green: #22C55E; --green-soft: rgba(34,197,94,0.12);
+    --amber: #F5A524; --amber-soft: rgba(245,165,36,0.12);
+    --red: #EF4444; --red-soft: rgba(239,68,68,0.12);
+    --blue-soft: rgba(10,133,255,0.14);
+    --purple: #A78BFA; --purple-soft: rgba(167,139,250,0.12);
+    --radius-sm: 8px; --radius-md: 14px; --radius-lg: 22px; --radius-full: 999px;
+    --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+    font-family: var(--font-sans); background-color: var(--bg);
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.055) 1px, transparent 0),
+        radial-gradient(ellipse 900px 500px at 12% -10%, rgba(255,88,46,0.14), transparent 60%),
+        radial-gradient(ellipse 900px 600px at 88% 0%, rgba(10,133,255,0.14), transparent 60%);
+    background-size: 28px 28px, auto, auto; background-attachment: fixed;
+    color: var(--text); min-height: 100vh; padding: 32px 20px;
+    -webkit-font-smoothing: antialiased; line-height: 1.6;
+}
+::selection { background: rgba(10,133,255,0.3); }
+.container { max-width: 1100px; margin: 0 auto; }
+.header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+.header h1 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+.header h1 .accent { background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.header-sub { font-size: 0.8rem; color: var(--text-dim); margin-top: 4px; font-family: var(--font-mono); }
+.header-actions { display: flex; gap: 8px; }
+.btn { padding: 8px 16px; font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); transition: all 0.2s var(--ease); }
+.btn:hover { border-color: var(--border-hover); color: var(--text); }
+.btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn-primary:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-action { padding: 5px 12px; font-size: 0.72rem; border-radius: 6px; }
+.btn-release { background: var(--blue-soft); color: var(--blue); border: none; }
+.btn-release:hover { background: rgba(10,133,255,0.25); }
+.btn-revise { background: var(--amber-soft); color: var(--amber); border: none; }
+.btn-revise:hover { background: rgba(245,165,36,0.25); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.stat-card { flex: 1; min-width: 130px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+.stat-label { font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+.stat-value { font-size: 1.6rem; font-weight: 700; font-family: var(--font-display); letter-spacing: -0.02em; }
+.tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+.tab { padding: 10px 18px; font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; color: var(--text-dim); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s var(--ease); }
+.tab:hover { color: var(--text-muted); }
+.tab.active { color: var(--text); border-bottom-color: var(--blue); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.badge { display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 500; letter-spacing: 0.02em; padding: 3px 10px; border-radius: var(--radius-full); }
+.badge-flagged { background: var(--red-soft); color: var(--red); }
+.badge-unmatched { background: var(--amber-soft); color: var(--amber); }
+.badge-clean { background: var(--green-soft); color: var(--green); }
+.badge-released { background: var(--blue-soft); color: var(--blue); }
+.badge-revised { background: var(--purple-soft); color: var(--purple); }
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead tr { border-bottom: 1px solid var(--border); }
+th { padding: 10px 14px; text-align: left; font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(35,41,57,0.5); }
+td.acct { color: var(--text); font-weight: 500; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: none; }
+.form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 24px; }
+.form-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+.form-sub { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 20px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+.fg label { display: block; font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 6px; }
+.fg input { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-raised); font-family: var(--font-sans); font-size: 0.85rem; color: var(--text); outline: none; }
+.fg input::placeholder { color: var(--text-dim); }
+.fg input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(10,133,255,0.15); }
+.filter-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-row input { padding: 9px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-raised); color: var(--text); font-size: 0.82rem; font-family: var(--font-sans); outline: none; max-width: 240px; }
+.filter-row input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(10,133,255,0.15); }
+.filter-pills { display: flex; gap: 4px; margin-left: auto; }
+.pill { padding: 6px 14px; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; border-radius: var(--radius-full); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); transition: all 0.15s var(--ease); }
+.pill:hover { border-color: var(--border-hover); color: var(--text-muted); }
+.pill.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.success-msg { padding: 10px 16px; background: var(--green-soft); border: 1px solid rgba(34,197,94,0.25); border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--green); font-weight: 500; margin-bottom: 16px; display: none; }
+.success-msg.show { display: block; }
+.empty { padding: 40px; text-align: center; color: var(--text-dim); font-size: 0.85rem; }
+.footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <div>
+        <h1>Pre-Billing <span class="accent">Mismatch Checker</span></h1>
+        <div class="header-sub" id="lastRunInfo">No runs yet</div>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="loadAll()">↻ Refresh</button>
+    </div>
+</div>
+
+<div class="success-msg" id="successMsg"></div>
+
+<div class="tabs">
+    <button class="tab active" onclick="switchTab('review', this)">Review Mismatches</button>
+    <button class="tab" onclick="switchTab('input-pricing', this)">Enter Agreed Pricing</button>
+    <button class="tab" onclick="switchTab('input-invoice', this)">Enter Draft Invoice</button>
+    <button class="tab" onclick="switchTab('pricing-log', this)">Pricing Records</button>
+</div>
+
+<!-- TAB: REVIEW -->
+<div class="tab-content active" id="tab-review">
+    <div class="stats">
+        <div class="stat-card"><span class="stat-label">Total Checks</span><span class="stat-value" id="sTotal">0</span></div>
+        <div class="stat-card"><span class="stat-label">Flagged</span><span class="stat-value" id="sFlagged" style="color:var(--red)">0</span></div>
+        <div class="stat-card"><span class="stat-label">Unmatched</span><span class="stat-value" id="sUnmatched" style="color:var(--amber)">0</span></div>
+        <div class="stat-card"><span class="stat-label">Resolved</span><span class="stat-value" id="sResolved" style="color:var(--green)">0</span></div>
+        <div class="stat-card"><span class="stat-label">Potential Leakage</span><span class="stat-value" id="sLeakage" style="color:var(--red)">$0.00</span></div>
+    </div>
+    <div class="filter-row">
+        <input id="reviewerName" placeholder="Your name (required to act)">
+        <input id="reviewNote" placeholder="Review note (optional)">
+        <div class="filter-pills">
+            <button class="pill active" onclick="setFilter('flagged',this)">Flagged</button>
+            <button class="pill" onclick="setFilter('unmatched',this)">Unmatched</button>
+            <button class="pill" onclick="setFilter('all',this)">All</button>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table><thead><tr><th>Account</th><th>Line Item</th><th>Agreed</th><th>Billed</th><th>Deviation</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="mBody"></tbody></table>
+        <div class="empty" id="mEmpty" style="display:none">No mismatches to review — all clean.</div>
+    </div>
+</div>
+
+<!-- TAB: ENTER PRICING -->
+<div class="tab-content" id="tab-input-pricing">
+    <div class="form-card">
+        <div class="form-title">Enter Agreed Pricing</div>
+        <div class="form-sub">After a sales negotiation, enter the agreed pricing here. This becomes the source of truth that every future invoice is checked against.</div>
+        <div class="form-grid">
+            <div class="fg"><label>Account / Customer Name *</label><input id="pAcct" placeholder="e.g. Acme Corp"></div>
+            <div class="fg"><label>Line Item / Product *</label><input id="pItem" placeholder="e.g. Platform License"></div>
+            <div class="fg"><label>Agreed Unit Price ($) *</label><input id="pPrice" type="number" step="0.01" placeholder="e.g. 42.00"></div>
+            <div class="fg"><label>Your Name *</label><input id="pBy" placeholder="e.g. Raj Mehta"></div>
+            <div class="fg"><label>Source Reference</label><input id="pSrc" placeholder="e.g. HubSpot Deal #1234, Email, Verbal"></div>
+            <div class="fg"><label>Remarks</label><input id="pRem" placeholder="e.g. Volume discount for 20+ seats"></div>
+        </div>
+        <button class="btn btn-primary" onclick="submitPricing()">Save Agreed Pricing</button>
+    </div>
+</div>
+
+<!-- TAB: ENTER INVOICE -->
+<div class="tab-content" id="tab-input-invoice">
+    <div class="form-card">
+        <div class="form-title">Enter Draft Invoice</div>
+        <div class="form-sub">Enter a draft invoice line item to be checked against agreed pricing. For automated entry, connect your billing system via webhook.</div>
+        <div class="form-grid">
+            <div class="fg"><label>Invoice ID *</label><input id="iId" placeholder="e.g. INV-2024-006"></div>
+            <div class="fg"><label>Account / Customer Name *</label><input id="iAcct" placeholder="e.g. Acme Corp"></div>
+            <div class="fg"><label>Line Item / Product *</label><input id="iItem" placeholder="e.g. Platform License"></div>
+            <div class="fg"><label>Billed Unit Price ($) *</label><input id="iPrice" type="number" step="0.01" placeholder="e.g. 50.00"></div>
+            <div class="fg"><label>Quantity</label><input id="iQty" type="number" step="1" value="1"></div>
+            <div class="fg"><label>Remarks</label><input id="iRem" placeholder="e.g. Monthly recurring"></div>
+        </div>
+        <button class="btn btn-primary" onclick="submitInvoice()">Save Draft Invoice</button>
+    </div>
+</div>
+
+<!-- TAB: PRICING LOG -->
+<div class="tab-content" id="tab-pricing-log">
+    <div class="table-wrap">
+        <div style="padding:16px 20px; border-bottom:1px solid var(--border);">
+            <div class="form-title">Pricing Records</div>
+            <div class="form-sub" style="margin-bottom:0;">All agreed pricing currently on file.</div>
+        </div>
+        <table><thead><tr><th>Account</th><th>Line Item</th><th>Agreed Price</th><th>Source</th><th>Remarks</th><th>Entered By</th><th>Date</th></tr></thead>
+        <tbody id="pBody"></tbody></table>
+        <div class="empty" id="pEmpty" style="display:none">No pricing records yet.</div>
+    </div>
+</div>
+
+<div class="footer">VikFlow — Pre-Billing Mismatch Checker v3 · Revenue Leakage Audit Framework</div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   n8n WEBHOOK ENDPOINTS
+   ═══════════════════════════════════════ */
+const BASE = 'https://automation.theworkflowengineer.ovh/webhook';
+const EP = {
+    getMismatches: BASE + '/get-mismatches',
+    getPricing:    BASE + '/get-pricing',
+    getRuns:       BASE + '/get-runs',
+    reviewAction:  BASE + '/review-action',
+    addPricing:    BASE + '/add-pricing',
+    addInvoice:    BASE + '/add-invoice'
+};
+
+let mismatches = [], pricing = [], runs = [], currentFilter = 'flagged';
+
+/* ── Fetch helpers ── */
+async function getJSON(url) {
+    const res = await fetch(url);
+    const data = await res.json();
+    // n8n returns array of objects or array of {json:{...}} wrappers
+    if (Array.isArray(data) && data.length > 0 && data[0].json) return data.map(d => d.json);
+    return Array.isArray(data) ? data : [];
+}
+
+async function postJSON(url, body) {
+    // Send as GET with query params to avoid CORS preflight entirely
+    // n8n webhook nodes receive query params in $json.query
+    const params = new URLSearchParams();
+    Object.entries(body).forEach(([k, v]) => {
+        if (v !== null && v !== undefined) params.set(k, String(v));
+    });
+    const res = await fetch(url + '?' + params.toString());
+    return res.json();
+}
+
+/* ═══════════════════════════════════════
+   LOAD ALL DATA
+   ═══════════════════════════════════════ */
+async function loadAll() {
+    try {
+        const [m, p, r] = await Promise.all([
+            getJSON(EP.getMismatches),
+            getJSON(EP.getPricing),
+            getJSON(EP.getRuns)
+        ]);
+        mismatches = m; pricing = p; runs = r;
+    } catch(e) { console.error('Load failed:', e); }
+    renderAll();
+}
+
+/* ═══════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════ */
+function renderAll() { renderStats(); renderMismatches(); renderPricing(); renderLastRun(); }
+
+function renderStats() {
+    const f = mismatches.filter(m => m.match_status === 'flagged');
+    document.getElementById('sTotal').textContent = mismatches.length;
+    document.getElementById('sFlagged').textContent = f.length;
+    document.getElementById('sUnmatched').textContent = mismatches.filter(m => m.match_status === 'unmatched').length;
+    document.getElementById('sResolved').textContent = mismatches.filter(m => ['released','revised'].includes(m.match_status)).length;
+    document.getElementById('sLeakage').textContent = '$' + f.reduce((s,m) => s + Number(m.deviation || 0), 0).toFixed(2);
+}
+
+function renderLastRun() {
+    const el = document.getElementById('lastRunInfo');
+    if (runs.length > 0) {
+        const r = runs[0];
+        el.textContent = 'Last run: ' + new Date(r.run_at).toLocaleString() + ' · ' + r.total_invoices_checked + ' checked · ' + r.flagged_count + ' flagged';
+    }
+}
+
+function badge(s) {
+    const l = {flagged:'Flagged',unmatched:'Unmatched',clean:'Clean',released:'Released',revised:'Revised'};
+    return '<span class="badge badge-'+s+'">'+(l[s]||s)+'</span>';
+}
+
+function renderMismatches() {
+    const list = currentFilter === 'all' ? mismatches : mismatches.filter(m => m.match_status === currentFilter);
+    const body = document.getElementById('mBody');
+    const empty = document.getElementById('mEmpty');
+    if (!list.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    body.innerHTML = list.map(m => {
+        const ag = m.agreed_price != null ? '$'+Number(m.agreed_price).toFixed(2) : '—';
+        const bi = '$'+Number(m.billed_price).toFixed(2);
+        const dv = m.deviation > 0 ? '+$'+Number(m.deviation).toFixed(2) : '$0.00';
+        const dc = m.deviation > 0 ? 'var(--red)' : 'var(--green)';
+        const canAct = ['flagged','unmatched'].includes(m.match_status);
+        let act = '';
+        if (canAct) {
+            act = '<button class="btn btn-action btn-release" onclick="doAction(\''+m.id+'\',\'release\')">Override & Release</button> '
+                + '<button class="btn btn-action btn-revise" onclick="doAction(\''+m.id+'\',\'revise\')">Request Revision</button>';
+        } else {
+            act = '<span style="font-size:0.72rem;color:var(--text-dim)">'+(m.reviewed_by ? m.match_status+' by '+m.reviewed_by : '—')+'</span>';
+        }
+        return '<tr><td class="acct">'+m.account_name+'</td><td>'+m.line_item+'</td><td class="num">'+ag+'</td><td class="num">'+bi+'</td><td class="num" style="font-weight:600;color:'+dc+'">'+dv+'</td><td>'+badge(m.match_status)+'</td><td>'+act+'</td></tr>';
+    }).join('');
+}
+
+function renderPricing() {
+    const body = document.getElementById('pBody');
+    const empty = document.getElementById('pEmpty');
+    if (!pricing.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    body.innerHTML = pricing.map(p => {
+        return '<tr><td class="acct">'+p.account_name+'</td><td>'+p.line_item+'</td><td class="num">$'+Number(p.agreed_unit_price).toFixed(2)+'</td><td style="font-size:0.75rem">'+(p.source_reference||'—')+'</td><td style="font-size:0.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(p.remarks||'—')+'</td><td style="font-size:0.75rem">'+(p.entered_by||'—')+'</td><td style="font-size:0.75rem">'+new Date(p.created_at).toLocaleDateString()+'</td></tr>';
+    }).join('');
+}
+
+/* ═══════════════════════════════════════
+   TABS & FILTERS
+   ═══════════════════════════════════════ */
+function switchTab(id, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-'+id).classList.add('active');
+}
+
+function setFilter(f, el) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-pills .pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    renderMismatches();
+}
+
+/* ═══════════════════════════════════════
+   ACTIONS
+   ═══════════════════════════════════════ */
+async function doAction(id, action) {
+    const reviewer = document.getElementById('reviewerName').value.trim();
+    if (!reviewer) { alert('Enter your name before taking action.'); return; }
+    const notes = document.getElementById('reviewNote').value.trim() || null;
+    try {
+        await postJSON(EP.reviewAction, { mismatch_id: id, action: action, reviewer: reviewer, notes: notes });
+        document.getElementById('reviewNote').value = '';
+        await loadAll();
+    } catch(e) { console.error(e); alert('Action failed — check console.'); }
+}
+
+/* ═══════════════════════════════════════
+   FORM SUBMISSIONS
+   ═══════════════════════════════════════ */
+function showSuccess(msg) {
+    const el = document.getElementById('successMsg');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+async function submitPricing() {
+    const a = document.getElementById('pAcct').value.trim();
+    const i = document.getElementById('pItem').value.trim();
+    const p = document.getElementById('pPrice').value;
+    const b = document.getElementById('pBy').value.trim();
+    if (!a || !i || !p || !b) { alert('Fill in account, line item, price, and your name.'); return; }
+    try {
+        await postJSON(EP.addPricing, {
+            account_name: a, line_item: i, agreed_unit_price: parseFloat(p),
+            source_reference: document.getElementById('pSrc').value.trim() || null,
+            remarks: document.getElementById('pRem').value.trim() || null,
+            entered_by: b
+        });
+        document.getElementById('pAcct').value = '';
+        document.getElementById('pItem').value = '';
+        document.getElementById('pPrice').value = '';
+        document.getElementById('pSrc').value = '';
+        document.getElementById('pRem').value = '';
+        showSuccess('Agreed pricing saved.');
+        await loadAll();
+    } catch(e) { console.error(e); alert('Failed — check console.'); }
+}
+
+async function submitInvoice() {
+    const id = document.getElementById('iId').value.trim();
+    const a = document.getElementById('iAcct').value.trim();
+    const i = document.getElementById('iItem').value.trim();
+    const p = document.getElementById('iPrice').value;
+    if (!id || !a || !i || !p) { alert('Fill in invoice ID, account, line item, and price.'); return; }
+    try {
+        await postJSON(EP.addInvoice, {
+            invoice_id: id, account_name: a, line_item: i,
+            billed_unit_price: parseFloat(p),
+            quantity: parseFloat(document.getElementById('iQty').value) || 1,
+            remarks: document.getElementById('iRem').value.trim() || null
+        });
+        document.getElementById('iId').value = '';
+        document.getElementById('iAcct').value = '';
+        document.getElementById('iItem').value = '';
+        document.getElementById('iPrice').value = '';
+        document.getElementById('iQty').value = '1';
+        document.getElementById('iRem').value = '';
+        showSuccess('Draft invoice saved. It will be checked on the next run.');
+        await loadAll();
+    } catch(e) { console.error(e); alert('Failed — check console.'); }
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', loadAll);
+</script>
+</body>
+</html>

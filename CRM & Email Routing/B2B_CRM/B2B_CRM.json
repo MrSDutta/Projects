@@ -1,0 +1,1569 @@
+{
+  "name": "B2B_CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "7300c6e1-b534-41af-8248-dac2d60be9ee",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1536,
+        80
+      ],
+      "id": "7a1d6c60-5727-458e-85e8-db66efe927be",
+      "name": "Lead Capture",
+      "webhookId": "7300c6e1-b534-41af-8248-dac2d60be9ee"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ni6r80mkbBjSYH9VRRAtOyBW6GFxevoGTnJ0d0y1I9s",
+          "mode": "list",
+          "cachedResultName": "Crm_News_Letter",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ni6r80mkbBjSYH9VRRAtOyBW6GFxevoGTnJ0d0y1I9s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ni6r80mkbBjSYH9VRRAtOyBW6GFxevoGTnJ0d0y1I9s/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.lead_id }}",
+            "name": "={{ $json.name }}",
+            "email": "={{ $json.email }}",
+            "email_domain": "={{ $json.email_domain }}",
+            "LinkedIn": "={{ $json.linkedin }}",
+            "message ": "={{ $json.message }}",
+            "source": "={{ $json.source }}",
+            "referred_by": "={{ $json.referred_by }}",
+            "ip_address": "={{ $json.ip_address }}",
+            "created_at": "={{ $json.received_at }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email_domain",
+              "displayName": "email_domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LinkedIn",
+              "displayName": "LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message ",
+              "displayName": "message ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "referred_by",
+              "displayName": "referred_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ip_address",
+              "displayName": "ip_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        176
+      ],
+      "id": "e0e5ae37-7004-4bce-9b84-3581be91f8d9",
+      "name": "Public_Domain_Leads",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "71H4oVWPJpMvTpcf",
+          "name": "Google Sheets Account_ai.souvik.test"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    '{{$json.name}}'::text AS name,\n    '{{$json.email}}'::text AS email,\n    '{{$json.email_domain}}'::text AS email_domain,\n    '{{$json.linkedin}}'::text AS linkedin,\n    '{{$json.message}}'::text AS message,\n    '{{$json.source}}'::text AS source,\n    '{{$json.referred_by}}'::text AS referred_by,\n    '{{$json.ip_address}}'::text AS ip_address,\n    '{{$json.user_agent}}'::text AS user_agent,\n    '{{$json.received_at}}'::timestamp AS received_at,\n    EXISTS (\n        SELECT 1\n        FROM crm.leads\n        WHERE email = '{{$json.email}}'\n    ) AS email_exists;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -416,
+        -16
+      ],
+      "id": "0d83127c-9a44-43be-88b8-6ab83ac2e5a3",
+      "name": "IF_Contact_Exists",
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9629077e-a4f2-4ea3-a074-03cf07e319b6",
+              "leftValue": "={{ $json.email_exists }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -192,
+        -16
+      ],
+      "id": "6adcefb9-c6db-4981-b5c8-3e1d338080a6",
+      "name": "If_Exist"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO crm.leads (\n  id,\n  name, email, company, domain, company_size, industry, segment,\n  lead_score, email_sent, status, email_opened, link_clicked,\n  assigned_to, notes, linkedin, message, source, referred_by,\n  ip_address, created_at\n)\nVALUES (\n  {{ $json.id }},\n  '{{ $json.name }}',\n  LOWER('{{ $json.email }}'),\n  '{{ $json.company }}',\n  LOWER('{{ $json.email_domain }}'),\n  {{ $json.company_size || 0 }},\n  '{{ $json.industry }}',\n  '{{ $json.segment }}',\n  {{ $json.lead_score || 0 }},\n  {{ $json.email_sent || false }},\n  '{{ $json.status || \"New\" }}',\n  {{ $json.email_opened || false }},\n  {{ $json.link_clicked || false }},\n  NULL,\n  '{{ $json.notes || \"\" }}',\n  '{{ $json.linkedin || \"\" }}',\n  '{{ $json.message || \"\" }}',\n  '{{ $json.source || \"\" }}',\n  '{{ $json.referred_by || \"\" }}',\n  '{{ $json.ip_address || \"\" }}',\n  '{{ $json.received_at }}'::timestamp\n)\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        480,
+        80
+      ],
+      "id": "0b14eceb-2b22-4b34-b2dc-dc3d307453c3",
+      "name": "Create_Leads",
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "value": "crm",
+          "mode": "list",
+          "cachedResultName": "crm"
+        },
+        "table": {
+          "__rl": true,
+          "value": "leads",
+          "mode": "list",
+          "cachedResultName": "leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $json.email }}",
+            "message": "={{ $json.message }}",
+            "source": "={{ $json.source }}",
+            "referred_by": "={{ $json.referred_by }}",
+            "ip_address": "={{ $json.ip_address }}",
+            "created_at": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "referred_by",
+              "displayName": "referred_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ip_address",
+              "displayName": "ip_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        32,
+        -112
+      ],
+      "id": "32741a32-19e0-42c0-8c9c-6057cb27ec8c",
+      "name": "Update_Leads",
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst base = `${item.email}|${item.source}|${item.ip_address}`;\n\nlet hash = 0;\nfor (let i = 0; i < base.length; i++) {\n\thash = (hash << 5) - hash + base.charCodeAt(i);\n\thash |= 0;\n}\n\nconst lead_id = Math.abs(hash);\n\nreturn [\n{\njson: {\nid: lead_id,\nname: item.name,\nemail: item.email,\nemail_domain: item.email_domain,\nis_business_email: item.is_business_email,\nlinkedin: item.linkedin,\nmessage: item.message,\nsource: item.source,\nreferred_by: item.referred_by,\nip_address: item.ip_address,\nuser_agent: item.user_agent,\nreceived_at: item.received_at\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        80
+      ],
+      "id": "4f9e125c-c4d8-4436-9cb3-6ce363417133",
+      "name": "Create_Contact_ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\n// mapping table\nconst sourceMap = {\n  \"4wf5673\": \"website_form\",\n  \"4ld5673\": \"linkedin\",\n  \"4cer5673\": \"cold_email_reply\",\n  \"4rfr5673\": \"referral\"\n};\n\n// clone object\nconst output = { ...item };\n\n// map source\nif (sourceMap[item.source]) {\n  output.source = sourceMap[item.source];\n}\n\nreturn [{ json: output }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        80
+      ],
+      "id": "666ada39-f32e-4342-9a00-7df2a5f94858",
+      "name": "Decoder"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\n// create base string\nconst base = `${item.email}|${item.source}|${item.ip_address}|${item.received_at}`;\n\n// simple hash function\nlet hash = 0;\nfor (let i = 0; i < base.length; i++) {\n\thash = (hash << 5) - hash + base.charCodeAt(i);\n\thash |= 0;\n}\n\n// convert to positive string\nconst leadId = \"Genlead_\" + Math.abs(hash).toString(16);\n\nreturn [\n{\njson: {\nlead_id: leadId,\nname: item.name,\nemail: item.email,\nemail_domain: item.email_domain,\nis_business_email: item.is_business_email,\nlinkedin: item.linkedin,\nmessage: item.message,\nsource: item.source,\nreferred_by: item.referred_by,\nip_address: item.ip_address,\nuser_agent: item.user_agent,\nreceived_at: item.received_at\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        176
+      ],
+      "id": "9a48e63d-9138-4c85-8b0b-eb74f5c1e0e4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6364e8bb-9dc4-4b46-b0e8-5c8757ba9296",
+              "leftValue": "={{ $json.is_business_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -640,
+        80
+      ],
+      "id": "b2e5630e-796e-4b23-9b65-332425efaeed",
+      "name": "Not_Public_Domain"
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nconst domain = lead.email_domain;\n\nconst companyDB = {\n  \"lntecc.com\": {\n    company: \"L&T Technology Services\",\n    industry: \"Engineering Services\",\n    company_size: 20000\n  },\n  \"zoho.com\": {\n    company: \"Zoho Corporation\",\n    industry: \"Software\",\n    company_size: 12000\n  }\n};\n\nlet companyData = companyDB[domain];\n\nif (!companyData) {\n  const size = Math.floor(Math.random()*40)+5;\n\n  companyData = {\n    company: domain.split(\".\")[0],\n    industry: \"Technology\",\n    company_size: size\n  };\n}\n\nlet segment = \"SMB\";\n\nif (companyData.company_size > 50) segment = \"Enterprise\";\nelse if (companyData.company_size >= 10) segment = \"Mid-Market\";\n\nreturn [{\n  json: {\n    ...lead,\n    company: companyData.company,\n    industry: companyData.industry,\n    company_size: companyData.company_size,\n    segment: segment,\n    lead_score: 0,\n    status: \"New\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        80
+      ],
+      "id": "933929ba-6719-4530-b2a6-8d810af49a66",
+      "name": "Company_Enrichment & Segmentation"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.segment }}",
+                    "rightValue": "Enterprise",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c9885afb-5d52-4585-98d5-17c0e9da51a4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Enterprise"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "18b72320-eec1-48c6-9b2e-a37480c1d4f7",
+                    "leftValue": "={{ $json.segment }}",
+                    "rightValue": "Mid-Market",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Mid-Market"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c36d549b-ae71-4289-86ac-5a5e1a37c097",
+                    "leftValue": "={{ $json.segment }}",
+                    "rightValue": "SMB",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SMB"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        928,
+        64
+      ],
+      "id": "6fe0f65d-e652-44bc-af62-dd70f155ec90",
+      "name": "Switch_Segment"
+    },
+    {
+      "parameters": {
+        "fromEmail": "ai.souvik.test@gmail.com",
+        "toEmail": "={{ $json.email}}",
+        "subject": "How Enterprise Teams Automate Lead Qualification & Sales Follow-up",
+        "html": "=Hi {{ $json.name }},\n\nI noticed you're part of **{{$json.company}}**, and many enterprise teams we work with face a similar problem.\n\nLeads arrive from multiple channels, but identifying the *high-intent prospects quickly* becomes difficult. Sales teams often spend time on low-priority leads while the real opportunities remain unnoticed.\n\nWe built a lightweight automation workflow that helps enterprise teams:\n\n• Capture inbound leads automatically\n• Enrich company data to identify enterprise prospects\n• Track engagement signals like email opens, link clicks, and pricing visits\n• Alert sales instantly when a lead shows strong buying intent\n\nYou can see how it works in practice below.\n\n**Enterprise case study**\n\nhttps://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a8?cid={{$json.id}}&source=4lc5674&target=https://example.com/casestudy?cid={{$json.id}}\n\n**Pricing and deployment overview**\n\nhttps://example.com/pricing?cid={{$json.id}}\n\nIf you're exploring ways to streamline lead qualification for {{$json.company}}, we can walk through a short live example.\n\n**Book a demo**\n\nhttps://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a8?cid={{$json.id}}&source=4dr5674&target=https://example.com/demo?cid={{$json.id}}\n\nBest regards,\nTeam XYZ\n\n<img src=\"https://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a9?cid={{$json.id}}&source=4eo5674\" width=\"1\" height=\"1\" alt=\"\">",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1152,
+        -112
+      ],
+      "id": "ee094882-ae52-4d21-8e52-c6724c8642b1",
+      "name": "Enterprise_Send_Email",
+      "webhookId": "d4cf1130-0215-4c68-a18d-dfa8931c7432",
+      "credentials": {
+        "smtp": {
+          "id": "3PU2RwM8KaNvMJYe",
+          "name": "SMTP account (ai.souvik.test)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "=ai.souvik.test@gmail.com",
+        "toEmail": "={{ $json.email}}",
+        "subject": "=A simpler way for {{$json.company}} to automate lead follow-up",
+        "html": "=Hi {{$json.name}},\n\nTeams in growing companies like **{{$json.company}}** often run into the same issue.\n\nLeads are coming in from forms, emails, or LinkedIn, but follow-ups still happen manually. That usually means delayed responses, missed opportunities, and a sales pipeline that’s hard to prioritize.\n\nWe built a simple workflow that helps mid-market teams:\n\n• Automatically capture and organize inbound leads\n• Enrich company information so you know who the lead actually is\n• Track engagement signals like email opens and page visits\n• Alert sales when a lead shows strong buying intent\n\nHere is a quick overview of how teams are using it.\n\n**See how the workflow works**\n\nhttps://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a8?cid={{$json.id}}&source=4lc5674&target=https://example.com/case-study?cid={{$json.id}}\n\n**View pricing and setup**\n\nhttps://example.com/pricing?cid={{$json.id}}\n\nIf helpful, we can also walk through a quick demo and show how it would work specifically for **{{$json.company}}**.\n\n**Book a short demo**\n\nhttps://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a8?cid={{$json.id}}&source=4dr5674&target=https://example.com/demo?cid={{$json.id}}\n\nBest regards,\nTeam XYZ\n\n<img src=\"https://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a9?cid={{$json.id}}&source=4eo5674\" width=\"1\" height=\"1\" alt=\"\">",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1152,
+        80
+      ],
+      "id": "27141dcd-0c36-4274-a5e2-87a5696147c1",
+      "name": "Mid-Market_Send_Email",
+      "webhookId": "d4cf1130-0215-4c68-a18d-dfa8931c7432",
+      "credentials": {
+        "smtp": {
+          "id": "3PU2RwM8KaNvMJYe",
+          "name": "SMTP account (ai.souvik.test)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "ai.souvik.test@gmail.com",
+        "toEmail": "={{ $json.email}}",
+        "subject": "A Simple Way To Make Sure No Lead Slips Through",
+        "html": "=Hi {{$json.name}},\n\nMany small teams like **{{$json.company}}** rely on spreadsheets or inboxes to manage new leads. The problem is that follow-ups easily get delayed or forgotten when things get busy.\n\nWe built a lightweight system that helps small teams stay on top of every opportunity.\n\nWith it you can:\n\n• Capture new leads automatically\n• Organize contacts in one place\n• Track when someone opens emails or clicks links\n• Get notified when someone shows real buying interest\n\nHere is a quick overview.\n\n**See how it works**\n\nhttps://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a8?cid={{$json.id}}&source=4lc5674&target=https://example.com/case-study?cid={{$json.id}}\n\n**View pricing**\n\nhttps://example.com/pricing?cid={{$json.id}}\n\nIf you'd like, you can also book a quick walkthrough and see the setup in action.\n\n**Schedule a demo**\n\nhttps://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a8?cid={{$json.id}}&source=4dr5674&target=https://example.com/demo?cid={{$json.id}}\n\nBest regards,\nTeam XYZ\n\n<img src=\"https://n8n.theworkflowengineer.ovh/webhook/f759437e-95f1-46c3-8c98-7cc6395181a8?cid={{$json.id}}&source=4eo5674\" width=\"1\" height=\"1\" alt=\"\">\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1152,
+        272
+      ],
+      "id": "5d48c799-69e3-4117-a15d-bdf424f40194",
+      "name": "SMB_Send_Email",
+      "webhookId": "d4cf1130-0215-4c68-a18d-dfa8931c7432",
+      "credentials": {
+        "smtp": {
+          "id": "3PU2RwM8KaNvMJYe",
+          "name": "SMTP account (ai.souvik.test)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node\n\nconst item = $input.first().json;\n\nconst headers = item.headers || {};\nconst body = item.body || {};\n\nconst email = body.email || \"\";\n\n// Extract domain\nlet domain = null;\nif (email.includes(\"@\")) {\n  domain = email.split(\"@\")[1].toLowerCase();\n}\n\n// List of public email providers to ignore\nconst publicDomains = [\n  \"gmail.com\",\n  \"yahoo.com\",\n  \"hotmail.com\",\n  \"outlook.com\",\n  \"live.com\",\n  \"msn.com\",\n  \"rediffmail.com\",\n  \"icloud.com\",\n  \"aol.com\",\n  \"protonmail.com\",\n  \"yandex.com\"\n];\n\n// Determine if business email\nconst isBusinessEmail = domain && !publicDomains.includes(domain);\n\nreturn [\n  {\n    json: {\n      name: body.name || null,\n      email: email,\n      email_domain: domain,\n      is_business_email: isBusinessEmail,\n\n      linkedin: body.linkedin || null,\n      message: body.message || null,\n      source: body.source || null,\n      referred_by: body.referred_by || null,\n\n      ip_address: headers[\"x-forwarded-for\"] || headers[\"x-real-ip\"] || null,\n      user_agent: headers[\"user-agent\"] || null,\n\n      received_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1312,
+        80
+      ],
+      "id": "3a13a2c1-6a4e-47af-b37c-368bd657ee36",
+      "name": "Normaliser-01"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "4wf5673",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "44a47d70-60d8-4d70-aa07-53cde8e715f3"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Website Form"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7ac3e979-aec8-445f-b296-341fcbe7cf36",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "4ld5673",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "LinkedIn"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "2e644e3d-8819-45d3-9e44-b5580cdc28a7",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "4cer5673",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cold Email Reply"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "de8f9ee9-e08b-4024-b205-8464248e8204",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "4rfr5673",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Referral"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1088,
+        48
+      ],
+      "id": "c8d1e969-c5d9-4a80-8598-dd6092bdf0e5",
+      "name": "Switch_Source-1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node: normalize webhook event\n\nconst item = $input.first().json;\n\nconst headers = item.headers || {};\nconst query = item.query || {};\nconst body = item.body || {};\n\n// contact id from query or body\nconst cid = query.cid || body.cid || null;\n\n// event source\nconst source = query.source || body.source || null;\n\n// map event codes to readable event names\nconst eventMap = {\n  \"4eo5674\": \"email_opened\",\n  \"4lc5674\": \"link_clicked\",\n  \"4ppv5674\": \"pricing_page_visited\",\n  \"4dr5674\": \"demo_requested\"\n};\n\nconst event = eventMap[source] || \"unknown_event\";\n\n// ip detection\nconst ip =\n  headers[\"x-forwarded-for\"] ||\n  headers[\"x-real-ip\"] ||\n  null;\n\nreturn [\n  {\n    json: {\n      id: cid ? parseInt(cid) : null,\n      source: source,\n      event_type: event,\n      ip_address: ip,\n      user_agent: headers[\"user-agent\"] || null,\n      occurred_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1312,
+        448
+      ],
+      "id": "f5c2990e-a8bb-4cb5-98b3-e3c5ca8309bc",
+      "name": "Normaliser-2"
+    },
+    {
+      "parameters": {
+        "path": "f759437e-95f1-46c3-8c98-7cc6395181a8",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1536,
+        352
+      ],
+      "id": "0a018963-7442-4c4f-bc92-a88981407965",
+      "name": "Event_Tracker",
+      "webhookId": "f759437e-95f1-46c3-8c98-7cc6395181a8"
+    },
+    {
+      "parameters": {
+        "path": "f759437e-95f1-46c3-8c98-7cc6395181a9",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1536,
+        544
+      ],
+      "id": "36a5cd98-5ead-4ee2-9af4-84c206f155ae",
+      "name": "Email_Opened",
+      "webhookId": "f759437e-95f1-46c3-8c98-7cc6395181a8"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "93796528-c8c2-4066-a0b3-3cc5cb698984",
+              "name": "id",
+              "value": "={{ $('Company_Enrichment & Segmentation').item.json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "33afa582-ac90-4790-a050-8f93bd52f912",
+              "name": "name",
+              "value": "={{ $('Company_Enrichment & Segmentation').item.json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "32d1e6a2-cf89-4304-8615-7252366369ae",
+              "name": "company",
+              "value": "={{ $('Company_Enrichment & Segmentation').item.json.company }}",
+              "type": "string"
+            },
+            {
+              "id": "f8a7a6a3-f0d4-4617-bdb0-a67e0a062d3f",
+              "name": "segment",
+              "value": "={{ $('Company_Enrichment & Segmentation').item.json.segment }}",
+              "type": "string"
+            },
+            {
+              "id": "6258e56e-eab6-48af-b45b-7612464c347f",
+              "name": "email",
+              "value": "={{ $('Company_Enrichment & Segmentation').item.json.email }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        704,
+        80
+      ],
+      "id": "7c6c52cc-ef6a-4a62-8bb7-f4585ea36ab7",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "42ad173b-5d6a-42c6-b393-312c2b8b64ec",
+              "leftValue": "={{$json.lead_score}}",
+              "rightValue": 50,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "1bffe707-b508-4f12-ae18-97359e81ba22",
+              "leftValue": "={{$json.status}}",
+              "rightValue": "contacted",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -640,
+        448
+      ],
+      "id": "ba3cfb40-eff7-482b-84f2-c9cdfb5b20c0",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE crm.leads\nSET status = 'Hot'\nWHERE id = {{ $json.id }}\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -416,
+        448
+      ],
+      "id": "8b9de4f3-4adc-41cd-9c64-dac82c2d2f0c",
+      "name": "Update_Status",
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AL9UGUD6Y",
+          "mode": "id"
+        },
+        "text": "=🔥 HOT LEAD ALERT\n\nEmail: {{ $json.email }}\nLinkedIn: {{ $json.linkedin }}\nCompany: {{$json.company}}\nContact: {{$json.name}}\nSource: {{ $json.source }}\nSegment: {{$json.segment}}\nLast Activity: {{$json.last_activity}}\n\n🎯 *Action Required:* Contact within 1 hour!",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        -192,
+        448
+      ],
+      "id": "cb510e52-4017-4e30-9de0-52231dcbbd2a",
+      "name": "Send a message",
+      "webhookId": "0e09cde1-535a-4044-a6d7-f413d2b278e3",
+      "credentials": {
+        "slackApi": {
+          "id": "KxQ64P96WWIDoIqs",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE crm.leads\nSET\n    status = 'Nurturing',\n    email_sent = TRUE,\n    last_activity = NOW(),\n    email_sequence_stage = 1,\n    last_email_sent_at = NOW(),\n    next_email_scheduled = NOW() + INTERVAL '2 days',\n    sequence_active = TRUE\nWHERE id = {{ $('Edit Fields').item.json.id }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1376,
+        80
+      ],
+      "id": "87bda2cb-c822-494d-99d6-040edb30be32",
+      "name": "Update_Nurturing",
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE crm.leads\nSET\n    lead_score = lead_score +\n        CASE\n            WHEN '{{ $json.event_type }}' = 'email_opened' THEN 5\n            WHEN '{{ $json.event_type }}' = 'link_clicked' THEN 10\n            WHEN '{{ $json.event_type }}' = 'pricing_page_visited' THEN 20\n            WHEN '{{ $json.event_type }}' = 'demo_requested' THEN 25\n            ELSE 0\n        END,\n    email_opened = CASE\n        WHEN '{{ $json.event_type }}' = 'email_opened' THEN TRUE\n        ELSE email_opened\n    END,\n    link_clicked = CASE\n        WHEN '{{ $json.event_type }}' = 'link_clicked' THEN TRUE\n        ELSE link_clicked\n    END,\n    last_activity = NOW()\nWHERE id = {{ $json.id }}\nRETURNING *;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1088,
+        448
+      ],
+      "id": "99557d68-618d-4d81-b04d-9e9d1403ce78",
+      "name": "Update_Score",
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    id,\n    name,\n    email,\n    company,\n    segment,\n    lead_score,\n    status,\n    last_activity,\n    email_opened,\n    link_clicked\nFROM crm.leads\nWHERE id = {{ $('Normaliser-2').item.json.id }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -864,
+        448
+      ],
+      "id": "9892f795-f3d5-4898-998c-0da380835bf8",
+      "name": "Get_Status",
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM crm.leads\nWHERE sequence_active = TRUE\n  AND next_email_scheduled <= NOW()\n  AND email_sequence_stage < 4;",
+        "options": {}
+      },
+      "id": "40735dd2-e18a-4184-9cd4-ed4726a87c69",
+      "name": "Fetch Ready Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1312,
+        736
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "5179fa0c-495c-4dcf-82e7-d72426f76ce3",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1088,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "type": "string",
+              "operation": "notEquals",
+              "leftValue": "={{ $json.sendEmail }}",
+              "rightValue": "",
+              "id": "6e6af959-0fcd-445c-ba99-dc4947e8a308"
+            },
+            {
+              "id": "c4f86dae-718a-4dfe-87c0-2024e8d2b7f7",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "58410bf2-00de-4107-b2d4-8f653025e0b6",
+      "name": "If: sendEmail?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -640,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "ai.souvik.test@gmail.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "73344c3e-0047-41d5-8fd6-01c30dc731be",
+      "name": "Send Email (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -416,
+        672
+      ],
+      "webhookId": "eb136223-dd8f-4e62-9746-dd53b78461f5",
+      "credentials": {
+        "smtp": {
+          "id": "3PU2RwM8KaNvMJYe",
+          "name": "SMTP account (ai.souvik.test)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE crm.leads\nSET\n  email_sequence_stage = {{ $json.sendEmail }},\n  last_email_sent_at = NOW(),\n  next_email_scheduled = {{ $json.next_email_scheduled ? (\"'\" + $json.next_email_scheduled + \"'::timestamp\") : \"NULL\" }},\n  sequence_active = {{ $json.sequence_active ? 'TRUE' : 'FALSE' }},\n  last_activity = NOW()\nWHERE id = {{ $json.id }}\nRETURNING *;",
+        "options": {}
+      },
+      "id": "62289c40-e12a-47f4-acbe-4293920ba178",
+      "name": "Update Lead (Postgres)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -192,
+        736
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SqbnwvRjWIi6Xiko",
+          "name": "Postgres account local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "5fbc49d3-027d-412b-92eb-b359982f0d19",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1536,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Sequencer - Decide & Template (improved)\nconst lead = $input.first().json || {};\nconst id = lead.id;\nconst email = (lead.email || '').toString().trim().toLowerCase();\nconst name = (lead.name || '').toString().trim();\nconst segmentRaw = (lead.segment || '').toString().trim();\nconst segment = segmentRaw || 'SMB';\nconst lastStage = Number(lead.email_sequence_stage || 0);\nconst emailOpened = !!lead.email_opened;\nconst linkClicked = !!lead.link_clicked;\nconst sequenceActive = (lead.sequence_active === undefined) ? true : !!lead.sequence_active;\n\n// engagement = opened or clicked or demo requested (if available)\nconst engaged = emailOpened || linkClicked || (lead.demo_requested === true);\n\n// if no email or sequence inactive or already finished\nif (!email || !sequenceActive || lastStage >= 4) {\n  return [{ json: { id, email, sendEmail: null, reason: 'no_send_conditions' } }];\n}\n\n// choose next stage\nlet nextStage = lastStage + 1;\nif (!engaged && lastStage === 3) {\n  nextStage = 4; // send break-up\n}\nif (nextStage > 4) nextStage = 4;\n\n// templates (short) — fallback to SMB\nconst templates = {\n  \"Enterprise\": {\n    1: { subject: `Welcome — quick question about ${lead.company || '[Company]'}`, html: `<p>Hi ${name || ''},</p><p>Quick question about ${lead.company || ''} — how do you currently handle lead follow-up?</p><p>Best,<br/>[Your name]</p>` },\n    2: { subject: `How ${lead.company || '[Company]'} automated lead qualification`, html: `<p>Hi ${name || ''},</p><p>Case study: automated segmentation & alerts. See: https://example.com/case-study?cid=${id}</p>` },\n    3: { subject: `15 mins to show you the system?`, html: `<p>Hi ${name || ''},</p><p>Quick demo: https://example.com/demo?cid=${id}</p>` },\n    4: { subject: `Should I close your file?`, html: `<p>Hi ${name || ''},</p><p>Before I close your file — interested or not?</p>` }\n  },\n  \"Mid-Market\": {\n    1: { subject: `Quick start for ${lead.company || '[Company]'}`, html: `<p>Hi ${name || ''},</p><p>Guide: https://example.com/guide?cid=${id}</p>` },\n    2: { subject: `How mid-market teams saved 10 hrs/week`, html: `<p>Hi ${name || ''},</p><p>Case study: https://example.com/case-study?cid=${id}</p>` },\n    3: { subject: `Demo this week?`, html: `<p>Hi ${name || ''},</p><p>Book: https://example.com/demo?cid=${id}</p>` },\n    4: { subject: `Last email (promise)`, html: `<p>Hi ${name || ''},</p><p>Closing your file unless you want follow-up.</p>` }\n  },\n  \"SMB\": {\n    1: { subject: `Free template: Lead nurture automation`, html: `<p>Hi ${name || ''},</p><p>Free template: https://example.com/template?cid=${id}</p>` },\n    2: { subject: `3 automation wins for small teams`, html: `<p>Hi ${name || ''},</p><p>How small teams automate: https://example.com/case-study?cid=${id}</p>` },\n    3: { subject: `Quick demo?`, html: `<p>Hi ${name || ''},</p><p>Book: https://example.com/demo?cid=${id}</p>` },\n    4: { subject: `Closing your file`, html: `<p>Hi ${name || ''},</p><p>Should I close your file or check back in 3 months?</p>` }\n  }\n};\n\nconst segKey = templates[segment] ? segment : 'SMB';\nconst tpl = templates[segKey][nextStage] || templates['SMB'][nextStage];\n\nif (!tpl || !tpl.subject || !tpl.html) {\n  return [{ json: { id, email, sendEmail: null, reason: 'missing_template' } }];\n}\n\n// compute next schedule (ISO) for DB\nlet nextEmailISO = null;\nlet keepSequence = true;\nif (nextStage === 1) {\n  // initial send -> schedule email 2 in 3 days\n  nextEmailISO = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString();\n} else if (nextStage === 2) {\n  nextEmailISO = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString();\n} else if (nextStage === 3) {\n  nextEmailISO = new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString();\n} else if (nextStage === 4) {\n  nextEmailISO = null;\n  keepSequence = false;\n}\n\n// final skip if lead marked Hot or lead_score >= 50\nif ((lead.status || '').toString().toLowerCase() === 'hot' || (Number(lead.lead_score || 0) >= 50)) {\n  return [{ json: { id, email, sendEmail: null, reason: 'hot_lead_skip' } }];\n}\n\nreturn [{\n  json: {\n    id,\n    email,\n    segment: segKey,\n    previous_stage: lastStage,\n    sendEmail: nextStage,\n    subject: tpl.subject,\n    html: tpl.html,\n    next_email_scheduled: nextEmailISO,\n    sequence_active: keepSequence\n  }\n}];"
+      },
+      "id": "bdb4408c-a4d8-4fdd-8638-1067c79a3dce",
+      "name": "Sequencer - Decide & Template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        672
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Lead Capture": {
+      "main": [
+        [
+          {
+            "node": "Normaliser-01",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Contact_Exists": {
+      "main": [
+        [
+          {
+            "node": "If_Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_Exist": {
+      "main": [
+        [
+          {
+            "node": "Update_Leads",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create_Contact_ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create_Contact_ID": {
+      "main": [
+        [
+          {
+            "node": "Company_Enrichment & Segmentation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decoder": {
+      "main": [
+        [
+          {
+            "node": "Not_Public_Domain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Public_Domain_Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create_Leads": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not_Public_Domain": {
+      "main": [
+        [
+          {
+            "node": "IF_Contact_Exists",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company_Enrichment & Segmentation": {
+      "main": [
+        [
+          {
+            "node": "Create_Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch_Segment": {
+      "main": [
+        [
+          {
+            "node": "Enterprise_Send_Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mid-Market_Send_Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SMB_Send_Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normaliser-01": {
+      "main": [
+        [
+          {
+            "node": "Switch_Source-1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch_Source-1": {
+      "main": [
+        [
+          {
+            "node": "Decoder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Decoder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Decoder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Decoder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normaliser-2": {
+      "main": [
+        [
+          {
+            "node": "Update_Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event_Tracker": {
+      "main": [
+        [
+          {
+            "node": "Normaliser-2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email_Opened": {
+      "main": [
+        [
+          {
+            "node": "Normaliser-2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch_Segment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update_Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_Status": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise_Send_Email": {
+      "main": [
+        [
+          {
+            "node": "Update_Nurturing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mid-Market_Send_Email": {
+      "main": [
+        [
+          {
+            "node": "Update_Nurturing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMB_Send_Email": {
+      "main": [
+        [
+          {
+            "node": "Update_Nurturing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_Score": {
+      "main": [
+        [
+          {
+            "node": "Get_Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_Status": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update_Nurturing": {
+      "main": [
+        []
+      ]
+    },
+    "Fetch Ready Leads": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Sequencer - Decide & Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If: sendEmail?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send Email (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email (SMTP)": {
+      "main": [
+        [
+          {
+            "node": "Update Lead (Postgres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead (Postgres)": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Ready Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sequencer - Decide & Template": {
+      "main": [
+        [
+          {
+            "node": "If: sendEmail?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "6104ec64-ca2f-4b08-a321-1f6488001353",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "41f2db6a31ec88fa3bb255e88f46e25c0eb8c38cb580272c45cd7d20fe13719a"
+  },
+  "id": "PvYi1lQDv6cCDi8e",
+  "tags": []
+}

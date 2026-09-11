@@ -1,0 +1,52 @@
+CREATE TABLE orders (
+    id                  SERIAL PRIMARY KEY,
+    order_id            BIGINT NOT NULL,
+
+    customer_name       VARCHAR(255),
+    customer_email      VARCHAR(255),
+    customer_phone      VARCHAR(255),
+
+    address1            TEXT,
+    address2            TEXT,
+    city                VARCHAR(255),
+    state               VARCHAR(255),
+    postal_code         VARCHAR(255),
+    country             VARCHAR(255),
+
+    validation_status   VARCHAR(255),
+
+    created_at          TIMESTAMP DEFAULT NOW(),
+    updated_at          TIMESTAMP DEFAULT NOW(),
+
+    customer_id         BIGINT,
+    country_code        VARCHAR(255),
+
+    warehouse_order_id  VARCHAR(255),
+    warehouse_status    VARCHAR(255),
+    warehouse_name      VARCHAR(255),
+    estimated_pick_time TIMESTAMP
+);
+
+
+CREATE TABLE address_validation_log (
+    id                  SERIAL PRIMARY KEY,
+
+    order_id            BIGINT,
+
+    original_address    JSONB,
+    corrected_address   JSONB,
+
+    confidence_score    NUMERIC,
+
+    validation_status   VARCHAR(255),
+
+    validated_at        TIMESTAMP DEFAULT NOW(),
+
+    google_response     JSONB,
+
+    latitude            DOUBLE PRECISION,
+    longitude           DOUBLE PRECISION,
+
+    place_id            TEXT,
+    formatted_address   TEXT
+);

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AddressFlow Dashboard (Basic)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f4f6f9;color:#222}
+.container{max-width:1100px;margin:40px auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
+h1{font-size:28px}
+button{padding:10px 16px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:25px}
+.card{background:#fff;padding:18px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.card h2{font-size:28px;margin-bottom:6px}
+.table-wrap{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:14px;text-align:left;border-bottom:1px solid #e5e7eb}
+th{background:#f8fafc}
+.status{padding:5px 10px;border-radius:20px;font-size:12px;font-weight:bold}
+.ready{background:#dcfce7;color:#166534}
+.review{background:#fee2e2;color:#991b1b}
+.corrected{background:#fef3c7;color:#92400e}
+@media(max-width:768px){
+.stats{grid-template-columns:repeat(2,1fr)}
+header{flex-direction:column;align-items:flex-start;gap:10px}
+table{font-size:14px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<div>
+<h1>AddressFlow</h1>
+<p>Basic Address Validation Dashboard</p>
+</div>
+<button onclick="alert('Refresh action')">Refresh</button>
+</header>
+
+<div class="stats">
+<div class="card"><h2>124</h2><p>Total Orders</p></div>
+<div class="card"><h2>98</h2><p>Validated</p></div>
+<div class="card"><h2>18</h2><p>Corrected</p></div>
+<div class="card"><h2>8</h2><p>Review Required</p></div>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Order ID</th>
+<th>Customer</th>
+<th>Original Address</th>
+<th>Validated Address</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>#1001</td>
+<td>John Smith</td>
+<td>221B Baker St, London</td>
+<td>221B Baker Street, London NW1</td>
+<td><span class="status corrected">Corrected</span></td>
+</tr>
+<tr>
+<td>#1002</td>
+<td>Jane Doe</td>
+<td>742 Evergreen Ter</td>
+<td>742 Evergreen Terrace</td>
+<td><span class="status ready">Ready</span></td>
+</tr>
+<tr>
+<td>#1003</td>
+<td>Alex Brown</td>
+<td>Unknown</td>
+<td>-</td>
+<td><span class="status review">Review</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</body>
+</html>

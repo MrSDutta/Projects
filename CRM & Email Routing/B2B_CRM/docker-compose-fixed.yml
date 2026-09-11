@@ -1,0 +1,180 @@
+version: '3.8'
+
+volumes:
+  n8n_storage:
+  postgres_storage:
+  qdrant_storage:
+  traefik_data:
+  metabase_storage:
+
+networks:
+  backend:
+    driver: bridge
+
+x-n8n: &service-n8n
+  image: n8nio/n8n:latest
+  labels:
+    - traefik.enable=true
+    - traefik.http.routers.n8n.rule=Host(`${SUBDOMAIN_1}.${DOMAIN_NAME}`)
+    - traefik.http.routers.n8n.tls=true
+    - traefik.http.routers.n8n.entrypoints=websecure
+    - traefik.http.routers.n8n.tls.certresolver=mytlschallenge
+    - traefik.http.middlewares.n8n.headers.SSLRedirect=true
+    - traefik.http.middlewares.n8n.headers.STSSeconds=315360000
+    - traefik.http.middlewares.n8n.headers.browserXSSFilter=true
+    - traefik.http.middlewares.n8n.headers.contentTypeNosniff=true
+    - traefik.http.middlewares.n8n.headers.forceSTSHeader=true
+    - traefik.http.middlewares.n8n.headers.SSLHost=${DOMAIN_NAME}
+    - traefik.http.middlewares.n8n.headers.STSIncludeSubdomains=true
+    - traefik.http.middlewares.n8n.headers.STSPreload=true
+    - traefik.http.routers.n8n.middlewares=n8n@docker
+  environment:
+    - DB_TYPE=postgresdb
+    - DB_POSTGRESDB_HOST=postgres
+    - DB_POSTGRESDB_USER=${POSTGRES_USER}
+    - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+    - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+    - N8N_DIAGNOSTICS_ENABLED=false
+    - N8N_PERSONALIZATION_ENABLED=false
+    - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+    - N8N_USER_MANAGEMENT_JWT_SECRET=${N8N_USER_MANAGEMENT_JWT_SECRET}
+    - N8N_HOST=${SUBDOMAIN_1}.${DOMAIN_NAME}
+    - N8N_PORT=5678
+    - N8N_PROTOCOL=https
+    - NODE_ENV=production
+    - WEBHOOK_URL=https://${SUBDOMAIN_1}.${DOMAIN_NAME}/
+    - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+    - TZ=${TZ}
+    - N8N_BASIC_AUTH_ACTIVE=true
+    - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+    - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+    - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    - EXECUTIONS_PROCESS=main
+    - EXECUTIONS_MODE=regular
+    - NODE_OPTIONS=--max-old-space-size=4096
+    - N8N_BLOCK_ENV_ACCESS_IN_NODE=true
+    - N8N_GIT_NODE_DISABLE_BARE_REPOS=true
+  env_file:
+    - .env
+  networks:
+    - backend
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    hostname: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    volumes:
+      - postgres_storage:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  n8n:
+    <<: *service-n8n
+    hostname: n8n
+    container_name: n8n
+    restart: unless-stopped
+    volumes:
+      - n8n_storage:/home/node/.n8n
+      - ./shared:/data/shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  traefik:
+    image: "traefik:latest"
+    restart: unless-stopped
+    command:
+      # REMOVED: - "--api.insecure=true"  # Security: Don't expose dashboard without auth
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.mytlschallenge.acme.tlschallenge=true"
+      - "--certificatesresolvers.mytlschallenge.acme.email=${SSL_EMAIL}"
+      - "--certificatesresolvers.mytlschallenge.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - traefik_data:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - backend
+
+  metabase:
+    image: metabase/metabase:latest
+    environment:
+      # Use PostgreSQL instead of H2 (prevents data loss on restart)
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${POSTGRES_USER}
+      MB_DB_PASS: ${POSTGRES_PASSWORD}
+      MB_DB_HOST: postgres
+    volumes:
+      - metabase_storage:/metabase_data
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.metabase.rule=Host(`${SUBDOMAIN_2}.${DOMAIN_NAME}`)
+      - traefik.http.routers.metabase.entrypoints=websecure
+      - traefik.http.routers.metabase.tls.certresolver=mytlschallenge
+      - traefik.http.services.metabase.loadbalancer.server.port=3000
+    networks:
+      - backend
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    hostname: qdrant
+    container_name: qdrant
+    restart: unless-stopped
+    # REMOVED exposed ports for security - only accessible internally
+    # ports:
+    #   - 6333:6333
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - backend
+
+  # Optional: Automated daily backups
+  backup:
+    image: postgres:16-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backups:/backups
+      - postgres_storage:/var/lib/postgresql/data:ro
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        pg_dump -h postgres -U $${POSTGRES_USER} -d $${POSTGRES_DB} | gzip > /backups/backup_$$(date +%Y-%m-%d_%H_%M_%S).sql.gz
+        find /backups -name "backup*.sql.gz" -type f -mtime +7 -delete
+        sleep 86400
+      done
+      EOF'
+    restart: unless-stopped
+    networks:
+      - backend

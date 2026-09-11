@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Audit Dashboard</title>
+<style>
+body{margin:0;font-family:Inter,Arial,sans-serif;background:#f3f4f6;color:#111827}
+.container{max-width:1280px;margin:30px auto;padding:20px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+button{background:#2563eb;color:#fff;border:none;padding:10px 18px;border-radius:8px;cursor:pointer}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.card{background:#fff;padding:18px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.card h2{margin:8px 0;font-size:30px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+th,td{padding:12px;border-bottom:1px solid #e5e7eb;text-align:left}
+th{background:#f9fafb}
+.badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold}
+.match{background:#dcfce7;color:#166534}
+.monitor{background:#fef3c7;color:#92400e}
+.critical{background:#fee2e2;color:#991b1b}
+#details{margin-top:24px;background:#fff;padding:20px;border-radius:10px;display:none}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px}
+.channel{padding:10px;border-radius:8px;background:#f9fafb;text-align:center}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<div>
+<h1>Inventory Audit Dashboard</h1>
+<p>Multi-channel inventory reconciliation</p>
+</div>
+<button onclick="loadData()">Refresh</button>
+</div>
+
+<div class="cards">
+<div class="card"><div>Total SKUs</div><h2 id="total">0</h2></div>
+<div class="card"><div>Matched</div><h2 id="matched">0</h2></div>
+<div class="card"><div>Monitor</div><h2 id="monitor">0</h2></div>
+<div class="card"><div>Critical</div><h2 id="critical">0</h2></div>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>SKU</th><th>Product</th><th>Master</th><th>Matched</th><th>Drift</th><th>Status</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+
+<div id="details">
+<h2 id="dsku"></h2>
+<p id="dproduct"></p>
+<div class="grid" id="channels"></div>
+</div>
+
+</div>
+
+<script>
+const URL="https://automation.theworkflowengineer.ovh/webhook/9265bad0-09f3-410a-9280-1bed7ca862ec";
+
+async function loadData(){
+ const res=await fetch(URL);
+ const data=await res.json();
+
+ document.getElementById("total").textContent=data.summary.total;
+ document.getElementById("matched").textContent=data.summary.matched;
+ document.getElementById("monitor").textContent=data.summary.monitored;
+ document.getElementById("critical").textContent=data.summary.critical;
+
+ const tbody=document.getElementById("tbody");
+ tbody.innerHTML="";
+
+ data.products.forEach(p=>{
+   const tr=document.createElement("tr");
+   tr.style.cursor="pointer";
+   tr.onclick=()=>showDetails(p);
+   tr.innerHTML=`
+   <td>${p.sku}</td>
+   <td>${p.product}</td>
+   <td>${p.master}</td>
+   <td>${p.matchedChannels}/5</td>
+   <td>${p.drift}</td>
+   <td><span class="badge ${p.status}">${p.status.toUpperCase()}</span></td>`;
+   tbody.appendChild(tr);
+ });
+}
+
+function showDetails(p){
+ document.getElementById("details").style.display="block";
+ document.getElementById("dsku").textContent=p.sku;
+ document.getElementById("dproduct").textContent=p.product;
+
+ const div=document.getElementById("channels");
+ div.innerHTML="";
+ Object.entries(p.channels).forEach(([k,v])=>{
+   const d=document.createElement("div");
+   d.className="channel";
+   d.innerHTML=`<strong>${k.toUpperCase()}</strong><br>${v}`;
+   div.appendChild(d);
+ });
+}
+
+loadData();
+</script>
+</body>
+</html>
